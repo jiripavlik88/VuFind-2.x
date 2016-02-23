@@ -1,0 +1,88 @@
+<span class='records-in-libraries-title'>
+	<?=$this->translate('Found in') ?>
+    <?=$this->countRecords?>
+    <?= ($countRecords > 1) 
+        ? $this->translate('institutions-in-locale') 
+        : $this->translate('institution-in-locale') 
+    ?>
+</span>
+
+<div class="col-sm-12 dedupInformation">
+<?php
+	if ($this->countRecords <= 2) {
+		$maxInstitutionsShown = 2;
+	} else if ($this->countRecords === 3) {
+		$maxInstitutionsShown = 3;
+	} else if ($this->countRecords >= 4) {
+		$maxInstitutionsShown = 2;
+	}
+
+	 $i = 0; // Print first $maxInstitutionsShown institutions
+	 foreach ($this->records as $source => $value):
+	    $i++;
+		$record = $value['id'];
+		$recordInLibraryOwnershipClass = is_array($this->myLibs) && in_array($source, $this->myLibs) ? 'my-library-record' : 'other-library-record';
+		
+		if ($this->params->getSearchType() == 'advanced') {
+		    $recordUrl = $this->recordLink()->getUrl($record).'?fromAdvancedSearchId='.$this->results->getSearchId();
+		} else {
+		    $recordUrl = $this->recordLink()->getUrl($record).'?fromSearchId='.$this->results->getSearchId();
+		}
+		
+		$anchor = $this->transEsc('source_' . $source, null, $source);
+		
+	?>
+
+    <a href="<?=$recordUrl?>" title="<?=$this->translate('Record in institution') . ' ' . $anchor ?>">
+        <div class="row root-title">
+            <div class="col-sm-12">
+                <span class="<?=$recordInLibraryOwnershipClass?>"><?=$anchor?></span>
+            </div>
+        </div>
+    </a>
+
+    <? if ($i == $maxInstitutionsShown) break; ?>
+<? endforeach; ?>
+
+
+<? if (count($this->records) > $maxInstitutionsShown): 
+	// If there is more institutions than $maxInstitutionsShown, print Dropdown
+?>
+<div class="margin-bottom">
+	<div class="btn-group">
+        <span type="button" class="show-next-institutions dropdown-toggle" data-toggle="dropdown"><?=$this->translate('Show next institutions')?> <b class="caret"></b></span>
+        <ul class="dropdown-menu scrollable-menu" role="menu">
+            <?
+                $i = 0;
+                // print rest of institutions, to dropdown
+                foreach ($this->records as $source => $value):
+                $i++;
+                if ($i <= $maxInstitutionsShown) continue;
+                $record = $value['id'];
+                $recordInLibraryOwnershipClass = is_array($this->myLibs) && in_array($source, $this->myLibs) ? 'my-library-record' : 'other-library-record';
+                
+                if ($this->params->getSearchType() == 'advanced') {
+                    $recordUrl = $this->recordLink()->getUrl($record).'?fromAdvancedSearchId='.$this->results->getSearchId();
+                } else {
+                    $recordUrl = $this->recordLink()->getUrl($record).'?fromSearchId='.$this->results->getSearchId();
+                }
+                
+                $anchor = $this->transEsc('source_' . $source, null, $source);
+                
+                ?>
+            
+                <a href="<?=$recordUrl?>" title="<?=$this->translate('Record in institution') . ' ' . $anchor ?>">
+                    <div class="row root-title">
+                        <div class="col-sm-12">
+                            <span class="<?=$recordInLibraryOwnershipClass?>"><?=$anchor?></span>
+                        </div>
+                    </div>
+                </a>
+            
+            <? endforeach; ?>
+        </ul>
+    </div>
+</div>
+<? endif; ?>
+
+</div>

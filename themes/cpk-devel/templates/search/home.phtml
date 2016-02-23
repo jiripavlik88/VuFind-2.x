@@ -1,9 +1,10 @@
 <?
   // Set page title.
-  $this->headTitle($this->translate('Search Home'));
+  $this->headTitle($this->translate('Knihovny.cz'));
 
   // Disable top search box -- this page has a special layout.
   $this->layout()->searchbox = false;
+  $this->layout()->frontpage = true;
 
   // Set default value if necessary:
   if (!isset($this->searchClassId)) {
@@ -15,9 +16,8 @@
   $basicSearch = $options->getSearchAction();
   $advSearch = $options->getAdvancedSearchAction();
 
-  $this->layout()->breadcrumbs = false;
+  $this->layout()->breadcrumbs = '<li><a title="' . $this->transEsc('Main page') . '" href="/">' . $this->transEsc('Main page') . '</a></li> ';
 ?>
-
 <div class="searchHomeContent">
   <? if ($this->ils()->getOfflineMode() == "ils-offline"): ?>
     <div class="alert alert-warning">
@@ -28,7 +28,19 @@
       <p><a href="mailto:<?=$supportEmail?>"><?=$supportEmail?></a></p>
     </div>
   <? endif; ?>
-  <div class="well well-lg clearfix">
-    <?=$this->render("search/searchbox.phtml")?>
+  <div class="col-md-4">
+    <h2><?=$this->transEsc('frontpage-most-wanted')?></h2>
+    <div class="white-box" style="height: 600px;">
+    </div>
+  </div>
+  <div class="col-md-4">
+    <h2><?=$this->transEsc('frontpage-events')?></h2>
+    <div class="white-box" style="height: 600px;">
+    </div>
+  </div>
+  <div class="col-md-4">
+    <h2><?=$this->transEsc('frontpage-news')?></h2>
+    <div class="white-box" style="height: 600px;">
+    </div>
   </div>
 </div>

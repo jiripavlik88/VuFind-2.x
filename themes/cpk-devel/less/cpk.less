@@ -1,54 +1,107 @@
 @import "bootstrap";
 
 //import colors definitions
-@import "parts/_bootstrap-material-design-colors";
+@import "vendor/_bootstrap-material-design-colors";
+//import datepicker styling
+@import "vendor/datepicker3";
 
 //import variables definitions
-@import "parts/_bootstrap-material-design-variables";
 @import "variables";
 
-@import "parts/alerts";
-@import "parts/well";
+//import element specific less files
+////////////////////////////////////
+@import "elements/alerts";
+@import "elements/well";
+@import "elements/cpk-icons";
+@import "elements/responsive-table";
+@import "elements/kacer-icons";
+@import "elements/lato";
+@import "elements/pr-icons";
+
+
+//import part specific less files
+/////////////////////////////////
+//contain styling for facets
 @import "parts/facets";
-@import "parts/header-searchbox";
+//contain styling for eu-cookies and header
+@import "parts/header";
+//contain styling for searchbox and autocomplete
+@import "parts/searchbox";
+//contain styling for footer
 @import "parts/footer";
+//contain styling for search results page
 @import "parts/search-results";
+//contain styling for notifications
+@import "parts/notifications";
+//contain styling for statistics module
+@import "parts/statistics";
+//contain styling for record page
+@import "parts/record";
+//contain styling for pages for signed-in users
+@import "parts/myresearch";
+//contain styling for admin
+@import "parts/admin";
+//contain styling for portal views
+@import "parts/portal";
 
-@import "statistics";
 
-header{
-  margin-bottom: 20px;
+///////////////////////////////////////////////////////////////////////////////////////////
+// Avoid showing horizontal scroolbar, when header and footer overflows on smaller desktops
+@media (min-width: @screen-lg-min) {
+  body {
+    overflow-x: hidden;
+    margin-left: -500px;
+    margin-right: -500px;
+  }
 }
 
-a {
+@brand-unknown: #9E9E9E;
+
+@label-unknown-bg: @brand-unknown;
+
+.label-unknown {
+  .label-variant(@label-unknown-bg);
+}
+
+a, .btn-link {
   cursor: pointer;
 }
-
-//to refactor
-.container .col-sm-9 {
-  padding-right:25px;
+a:hover, a:focus, .btn-link:hover, .btn-link:focus {
+  text-decoration: none;
 }
 
-//to refactor
-.search-controls {
-  margin-bottom: 10px;
-  margin-left: -30px;
-  margin-right: -30px;
-}
-
-//to refactor
-.search-controls .text-right {
-  margin-top:-6px;
-}
-
-//record view
-.template-dir-record > .container {
-  padding: 0px;
-}
 
 .form-control {
   &:focus {
     @shadow: none;
     .box-shadow(@shadow);
   }
+}
+
+// Override padding
+.nopadding {
+   padding: 0 !important;
+   margin: 0 !important;
+}
+
+.margin-bottom {
+   margin-bottom: 20px;
+}
+
+.breadcrumb {
+    background-color: inherit;
+    margin-bottom: 10px;
+    padding: 0px 15px 5px 15px;
+}
+
+.btn-primary {
+  font-family: LatoWebHeavy;
+  text-transform: uppercase;
+}
+
+.link {
+	color: #2196f3 !important;
+}
+.link:hover {
+    text-decoration: underline !important;
 }

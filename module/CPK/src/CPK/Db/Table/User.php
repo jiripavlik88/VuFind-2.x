@@ -83,7 +83,7 @@ class User extends BaseUser
         $this->deleteConsolidationToken($token);
         $clearedTokens = $this->clearAllExpiredTokens($secondsToExpire);
 
-        $isExpired = $time >= intval($result->created) + $secondsToExpire;
+        $isExpired = time() >= intval($result['created']) + $secondsToExpire;
 
         if ($isExpired)
             throw new \VuFind\Exception\Auth('Consolidation token has expired.');
@@ -117,7 +117,7 @@ class User extends BaseUser
         if (! $result || empty($result['username']))
             return 0;
 
-        $splittedResult = split(';', $result['username']);
+        $splittedResult = explode(';', $result['username']);
         if (count($splittedResult) === 2) {
             return intval($splittedResult[1]);
         } else
@@ -125,15 +125,18 @@ class User extends BaseUser
     }
 
     /**
-     * Retrieve a user object from the database based on eduPersonPrincipalName from his libCards
+     * Retrieve a user object from the database based on eduPersonPrincipalName from his libCards.
+     *
+     * Returns false if not found anything
      *
      * @param string $eppn
      *            eduPersonPrincipalName to use for retrieval.
      *
-     * @return UserRow
+     * @return mixed UserRow | false
      */
     public function getUserRowByEppn($eppn)
     {
+        // FIXME: Process of retrieving User from eppn would be faster if made in one query ..
         $rowId = $this->getUserRowIdByEppn($eppn);
 
         if ($rowId) {
@@ -200,7 +203,7 @@ class User extends BaseUser
      *
      * @param string $token
      * @param number $userRowId
-     * @return mixed string $tokenRowId | false $succeeded
+     * @return boolean $succeeded
      */
     public function saveUserConsolidationToken($token, $userRowId)
     {
@@ -382,5 +385,43 @@ class User extends BaseUser
 
         if ($mergedSomething)
             $into->save();
+    }
+    
+    /**
+     * Returns rows from user and user_card tables, where user.major is not empty.
+     * 
+     * @return array
+     */
+    public function getUsersWithPermissions()
+    {
+        $select = new Select('user_card');
+        $select->columns(['eppn', 'major']);
+        $select->where("`major` IS NOT NULL AND `major` <> ''");
+        
+        $statement = $this->sql->prepareStatementForSqlObject($select);
+        $results = $statement->execute();
+
+        $resultSet = new \Zend\Db\ResultSet\ResultSet();
+        $resultSet->initialize($results);
+        $resultsArray = $resultSet->toArray();
+        
+        return $resultsArray;
+    }
+    
+    /**
+     * Sets permissions to user
+     * 
+     * @param string $eppn EduPersonPrincipalName
+     * @param string $major Major permissions
+     */
+    public function saveUserWithPermissions($eppn, $major)
+    {
+        $update = new Update('user_card');
+        $update->set([
+            'major' => $major
+        ]);
+        $update->where(['eppn' => $eppn]);
+
+        return $this->executeAnyZendSQLUpdate($update);
     }
 }

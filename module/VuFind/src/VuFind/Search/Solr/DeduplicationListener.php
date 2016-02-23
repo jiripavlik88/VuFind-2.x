@@ -48,6 +48,11 @@ use Zend\ServiceManager\ServiceLocatorInterface;
  */
 class DeduplicationListener
 {
+
+    const OR_FACETS_REGEX = '/(\\{[^\\}]*\\})*([\S]+):\\((.+)\\)/';
+
+    const FILTER_REGEX = '/(\S+):"([^"]+)"/';
+
     /**
      * Backend.
      *
@@ -70,6 +75,13 @@ class DeduplicationListener
     protected $searchConfig;
 
     /**
+     * Search configuration file identifier.
+     *
+     * @var string
+     */
+    protected $facetConfig;
+
+    /**
      * Data source configuration file identifier.
      *
      * @var string
@@ -77,11 +89,25 @@ class DeduplicationListener
     protected $dataSourceConfig;
 
     /**
+     *
+     *
+     * @var \VuFind\Auth\Manager
+     */
+    protected $authManager;
+
+    /**
      * Whether deduplication is enabled.
      *
      * @var bool
      */
     protected $enabled;
+
+    /**
+     * Whether deduplication is enabled.
+     *
+     * @var bool
+     */
+    protected $useLibraryCardsForPriority = true;
 
     /**
      * Constructor.
@@ -98,12 +124,14 @@ class DeduplicationListener
     public function __construct(
         BackendInterface $backend,
         ServiceLocatorInterface $serviceLocator,
-        $searchConfig, $dataSourceConfig = 'datasources', $enabled = true
+        $searchConfig, $facetConfig, $dataSourceConfig = 'datasources', $enabled = true
     ) {
         $this->backend = $backend;
         $this->serviceLocator = $serviceLocator;
         $this->searchConfig = $searchConfig;
+        $this->facetConfig = $facetConfig;
         $this->dataSourceConfig = $dataSourceConfig;
+        $this->authManager = $serviceLocator->get('VuFind\AuthManager');
         $this->enabled = $enabled;
     }
 
@@ -143,6 +171,7 @@ class DeduplicationListener
                 // If deduplication is enabled, filter out merged child records,
                 // otherwise filter out dedup records.
                 if ($this->enabled) {
+                    $params->set('uniqueId', 'local_ids_str_mv');
                     $fq = '-merged_child_boolean:true';
                     if ($context == 'similar' && $id = $event->getParam('id')) {
                         $fq .= ' AND -local_ids_str_mv:"'
@@ -172,9 +201,9 @@ class DeduplicationListener
         }
 
         // Inject deduplication details into record objects:
-        $backend = $event->getParam('backend');
+        $backend = $event->getTarget();
 
-        if ($backend != $this->backend->getIdentifier()) {
+        if ($backend != $event->getTarget()) {
             return $event;
         }
         $context = $event->getParam('context');
@@ -199,8 +228,8 @@ class DeduplicationListener
         $recordSources = isset($searchConfig->Records->sources)
             ? $searchConfig->Records->sources
             : '';
-        $sourcePriority = $this->determineSourcePriority($recordSources);
         $params = $event->getParam('params');
+        $sourcePriority = $this->determineSourcePriority($recordSources, $params);
         $buildingPriority = $this->determineBuildingPriority($params);
 
         $idList = [];
@@ -333,8 +362,17 @@ class DeduplicationListener
      *
      * @return array Array keyed by source with priority as the value
      */
-    protected function determineSourcePriority($recordSources)
+    protected function determineSourcePriority($recordSources, $params)
     {
+        $userLibraries = $this->getUsersHomeLibraries();
+        $priorities = array_flip($this->getUsersHomeLibraries());
+        if (!empty($priorities)) {
+            return array_reverse($priorities);
+        }
+        $priorities = $this->determineInstitutionPriority($params);
+        if (!empty($priorities)) {
+            return $priorities;
+        }
         return array_flip(explode(',', $recordSources));
     }
 
@@ -349,22 +387,88 @@ class DeduplicationListener
     {
         $result = [];
         foreach ($params->get('fq') as $fq) {
-            if (preg_match(
-                '/\bbuilding:"([^"]+)"/', //'/\bbuilding:"?\d+\/([^\/]+?)\//',
+            if (preg_match_all(
+                '/\bbuilding:"([^"]+)"/',
                 $fq,
                 $matches
             )) {
-                $value = $matches[1];
-                if (preg_match('/^\d+\/([^\/]+?)\//', $value, $matches)) {
-                    // Hierarchical facets; take only first level:
-                    $result[] = $matches[1];
-                } else {
-                    $result[] = $value;
+                $values = $matches[1];
+                foreach ($values as $value) {
+                    if (preg_match('/^\d+\/([^\/]+?)\//', $value, $matches)) {
+                        // Hierarchical facets; take only first level:
+                        $result[] = $matches[1];
+                    } else {
+                        $result[] = $value;
+                    }
                 }
             }
         }
 
         array_unshift($result, '');
+        $result = array_flip($result);
+        return $result;
+    }
+
+    /**
+     * User's Library cards (home_library values)
+     *
+     * @return	array
+     */
+    public function getUsersHomeLibraries()
+    {
+        if ($this->useLibraryCardsForPriority && ($user = $this->authManager->isLoggedIn())) { // is loggedIn
+            $libraryCards = $user->getLibraryCards()->toArray();
+            $myLibs = array();
+            foreach ($libraryCards as $libCard) {
+                $homeLib = $libCard['home_library'];
+                $myLibs[] = $homeLib;
+            }
+            return array_unique($myLibs);
+        }
+        return [];
+    }
+
+    /**
+     * User's Library cards (home_library values)
+     *
+     * @return	array
+     */
+    public function determineInstitutionPriority($params) {
+        $config = $this->serviceLocator->get('VuFind\Config');
+        $facetConfig = $config->get($this->facetConfig);
+        if (!isset($facetConfig->InstitutionsMappings)) {
+            return [];
+        }
+        $institutionMappings = array_flip($facetConfig->InstitutionsMappings->toArray());
+        $result = [];
+        foreach ($params->get('fq') as $fq) {
+            if (preg_match(self::OR_FACETS_REGEX, $fq, $matches)) {
+                $field = $matches[2];
+                if ($field != 'institution') {
+                    continue;
+                }
+                $filters = explode('OR', $matches[3]);
+                foreach ($filters as $filter) {
+                    if (preg_match(self::FILTER_REGEX, $filter, $matches)) {
+                        $value = $matches[2];
+                        $prefix = $institutionMappings[$value];
+                        if ($prefix) {
+                                $result[] = $prefix;
+                        }
+                    }
+                }
+            } else if (preg_match(self::FILTER_REGEX, $fq, $matches)) {
+                $field = $matches[1];
+                if ($field != 'institution') {
+                    continue;
+                }
+                $value = $matches[2];
+                $prefix = $institutionMappings[$value];
+                if ($prefix) {
+                    $result[] = $prefix;
+                }
+            }
+        }
         $result = array_flip($result);
         return $result;
     }

@@ -5,11 +5,16 @@ ChangeLog
 .\#*
 TAGS
 *~
+vendor
+composer.lock
+import/solrmarc.log
 vendor/.git
 .project
 .buildpath
 /nbproject
 messages.log
+messages-front.log
 cache
 log
 .settings
+git-3way-merge.local.cfg

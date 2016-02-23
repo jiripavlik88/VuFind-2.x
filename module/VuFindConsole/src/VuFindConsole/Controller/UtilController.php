@@ -421,6 +421,36 @@ class UtilController extends AbstractBase
 
     /**
      * Command-line tool to clear unwanted entries
+     * from record cache table.
+     *
+     * @return \Zend\Console\Response
+     */
+    public function cleanuprecordcacheAction()
+    {
+        $this->consoleOpts->addRules(
+            [
+                'h|help' => 'Get help',
+            ]
+        );
+
+        if ($this->consoleOpts->getOption('h')
+            || $this->consoleOpts->getOption('help')
+        ) {
+            Console::writeLine('Clean up unused cached records from the database.');
+            return $this->getFailureResponse();
+        }
+
+        $recordTable = $this->getServiceLocator()->get('VuFind\DbTablePluginManager')
+            ->get('Record');
+
+        $count = $recordTable->cleanup();
+
+        Console::writeLine("$count records deleted.");
+        return $this->getSuccessResponse();
+    }
+
+    /**
+     * Command-line tool to clear unwanted entries
      * from search history database table.
      *
      * @return \Zend\Console\Response
@@ -607,12 +637,27 @@ class UtilController extends AbstractBase
     {
         $argv = $this->consoleOpts->getRemainingArgs();
         $compiler = new \VuFindTheme\LessCompiler(true);
-        $cacheManager = $this->getServiceLocator()->get('VuFind\CacheManager');
-        $cacheDir = $cacheManager->getCacheDir() . 'less/';
+        //$cacheManager = $this->getServiceLocator()->get('VuFind\CacheManager');
+        //$cacheDir = $cacheManager->getCacheDir() . 'less/';
+        $cacheDir = '/tmp/cpk-less';
         $compiler->setTempPath($cacheDir);
         $compiler->compile($argv);
         return $this->getSuccessResponse();
     }
+
+    /**
+     * Check Obalky knih servers availability.
+     *
+     * @return \Zend\Console\Response
+     */
+    public function obalkyKnihAction()
+    {
+        $argv = $this->consoleOpts->getRemainingArgs();
+        $failover = new \ObalkyKnihV3\Failover(true);
+        $failover->checkAvailability($argv);
+        return $this->getSuccessResponse();
+    }
+
 
     /**
      * Abstract delete method.

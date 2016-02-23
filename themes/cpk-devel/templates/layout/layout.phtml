@@ -1,5 +1,5 @@
 <?=$this->doctype('HTML5')?>
-<html lang="<?=$this->layout()->userLang?>">
+<html lang="<?=explode("-", $this->layout()->userLang)[0]?>">
   <head>
     <?$this->headThemeResources()?>
     <meta charset="utf-8">
@@ -18,25 +18,57 @@
         )
       );
     ?>
+    <!-- RTL styling -->
+    <? if ($this->layout()->rtl) {
+      $this->headLink()->appendStylesheet('vendor/bootstrap-rtl.min.css');
+    } ?>
     <?=$this->headLink()?>
+    <link href='https://fonts.googleapis.com/css?family=Open+Sans:400,300,300italic,600,400italic,700,600italic,700italic,800,800italic&subset=latin,latin-ext' rel='stylesheet' type='text/css'>
     <?=$this->headStyle()?>
     <?
-      // Set global path for Javascript code:
-      $this->headScript()->prependScript("path = '" . rtrim($this->url('home'), '/') . "';");
-
-      // Deal with cart stuff:
       if (!isset($this->renderingError)) {
-        $cart = $this->cart();
+        // Add translation strings
         $this->jsTranslations()->addStrings(
           array(
             'bulk_email_success' => 'bulk_email_success',
+            'bulk_noitems_advice' => 'bulk_noitems_advice',
             'bulk_save_success' => 'bulk_save_success',
             'close' => 'close',
+            'go_to_list' => 'go_to_list',
+            'libphonenumber_invalid' => 'libphonenumber_invalid',
+            'libphonenumber_invalidcountry' => 'libphonenumber_invalidcountry',
+            'libphonenumber_invalidregion' => 'libphonenumber_invalidregion',
+            'libphonenumber_notanumber' => 'libphonenumber_notanumber',
+            'libphonenumber_toolong' => 'libphonenumber_toolong',
+            'libphonenumber_tooshort' => 'libphonenumber_tooshort',
+            'libphonenumber_tooshortidd' => 'libphonenumber_tooshortidd',
             'loading' => 'Loading',
             'sms_success' => 'sms_success',
-            'number_thousands_separator' => ['number_thousands_separator', null, ',']
+            'number_thousands_separator' => ['number_thousands_separator', null, ','],
+            'in_titles' => 'in_titles',
+            'in_authors' => 'in_authors',
+            'in_subjects' => 'in_subjects',
+            'citation_set_permanently' => 'citation_set_permanently',
+            'records_per_page_set_permanently' => 'records_per_page_set_permanently',
+            'default_sorting_set_permanently' => 'default_sorting_set_permanently',
+            'Source' => 'Source',
+            'Reserve' => 'Reserve'
           )
         );
+        // Add libphonenumber.js strings
+        $this->jsTranslations()->addStrings(
+          array(
+            "'Phone number invalid'" => 'libphonenumber_invalid',
+            "'Invalid country calling code'" => 'libphonenumber_invalidcountry',
+            "'Invalid region code'" => 'libphonenumber_invalidregion',
+            "'The string supplied did not seem to be a phone number'" => 'libphonenumber_notanumber',
+            "'The string supplied is too long to be a phone number'" => 'libphonenumber_toolong',
+            "'The string supplied is too short to be a phone number'" => 'libphonenumber_tooshort',
+            "'Phone number too short after IDD'" => 'libphonenumber_tooshortidd'
+          )
+        );
+        // Deal with cart stuff:
+        $cart = $this->cart();
         if ($cart->isActive()) {
           $this->headScript()->appendFile("vendor/cookies.js");
           $this->headScript()->appendFile("cart.js");
@@ -61,7 +93,21 @@
             )
           );
         }
-        $this->headScript()->appendScript($this->jsTranslations()->getScript());
+        $this->headScript()->appendScript(
+          'var userIsLoggedIn = ' . ($this->auth()->isLoggedIn() ? 'true' : 'false') . ';'
+        );
+      }
+
+      // ng-app translations ..
+      $this->jsTranslations()->addStrings(
+          array(
+              'you_have_unsaved_favorites' => 'you_have_unsaved_favorites'
+          )
+      );
+
+      // Prompt 'offline' favorites to push to the server
+      if(isSeT($_ENV['justLoggedIn'])) {
+          $this->headScript()->appendScript('function sendMeFavs(){return true;}');
       }
 
       // Session keep-alive
@@ -71,36 +117,71 @@
           $this->headScript()->appendFile("keep_alive.js");
       }
 
+
         /*
-        * This handles PerunShibboleth's Assertions returned by Shibboleth SP to easily detect returned attributes
-        * This part checks if ShibAssertion export is enabled if [Shibboleth] config section & if it is, it gets those assertions
-        */
+         * Will we show the notifications ??
+         */
         $authManager = $this->auth()->getManager();
-        $assertionExportEnabled = false;
-        $isActiveShibbolethIdentityManager = false;
+        $user = $authManager->isLoggedIn();
+
+        $libraryCards = [];
+
+        $notificationsEnabled = false;
+
         if ($authManager instanceof \CPK\Auth\Manager) {
-            if ($authManager->getAuthMethod() === "PerunShibboleth") {
-                $authMethod = $authManager->getAuthInstance("PerunShibboleth");
+            $notificationsEnabled = $authManager->isNotificationSystemEnabled();
 
-            } elseif($authManager->getAuthMethod() === "ShibbolethIdentityManager") {
-                $authMethod = $authManager->getAuthInstance("ShibbolethIdentityManager");
-            }
+            if ($notificationsEnabled) {
 
-            if ($authMethod && $authMethod->isShibAssertionExportEnabled()) {
-                $assertions = $authMethod->getShibAssertions();
+                $this->headScript()->appendFile("async-notifications.js");
 
-                if (!empty($assertions)) {
-                    $assertionExportEnabled = true;
+                // Add notifications translations
+                $this->jsTranslations()->addStrings(
+                        array(
+                            'you_have_blocks' => 'notif_you_have_blocks',
+                            'you_have_fines' => 'notif_you_have_fines',
+                            'you_have_overdues' => 'notif_you_have_overdues'
+                        )
+                        );
+
+                /* Also check if the user have just logged in - in order to let
+                 * the __notif.sourcesRead know about it's state before last logout
+                 */
+
+                if(isSeT($_ENV['justLoggedIn'])) {
+
+                    if ($_ENV['justLoggedIn'] === true) {
+                        $this->headScript()->appendScript('$(function(){'
+                                . '__notif.sourcesRead.init('
+                                . $user->read_notifications . ') })');
+                    }
                 }
             }
         }
 
-      ?>
+        if ($user) {
+            $libraryCards = $user->getLibraryCards(false);
+        }
 
-    <?=$this->headScript()?>
+        $headerParams = [
+            'account' => $authManager,
+            'user' => $user,
+            'libraryCards' => $libraryCards,
+            'notificationsEnabled' => $notificationsEnabled,
+        ];
+    ?>
+    <?
+      $root = rtrim($this->url('home'), '/');
+      $translations = $this->jsTranslations()->getJSON();
+      $dsb = DEFAULT_SEARCH_BACKEND;
+      $setupJS = "var VuFind = new VuFindNamespace('{$root}', {$translations}, '{$dsb}');";
+      $this->headScript()->appendScript($setupJS);
+    ?>
+    <?=$this->headScript()->appendFile("geolocation.js");?>
   </head>
-  <body>
+  <body ng-app="cpk" ng-controller="MainController as ctrl" class="<?=$this->layoutClass('offcanvas-row')?><? if ($this->layout()->rtl): ?> rtl<? endif; ?>">
     <?=$this->render('cookies-agreement.phtml')?>
+    <?=$this->render('info.phtml')?>
     <? // Set up the search box -- there are three possible cases:
       // 1. No search box was set; we should default to the normal box
       // 2. It was set to false; we should display nothing
@@ -111,67 +192,45 @@
         $this->layout()->searchbox = $this->render('search/searchbox.phtml');
       }
     ?>
-    <header role="banner" class="hidden-print">
-      <div class="container navbar navbar-inverse">
-        <a class="sr-only" href="#content"><?=$this->transEsc('Skip to content') ?></a>
-        <?=$this->render('header.phtml')?>
+    <header class="hidden-print header-container <?=($this->layout()->frontpage == true)?'frontpage':''?>">
+      <div class="container navbar">
+	<a class="sr-only" href="#content"><?=$this->transEsc('Skip to content') ?></a>
+        <?=$this->render('header.phtml', $headerParams)?>
       </div>
       <div class="container">
-          <? if ($this->layout()->searchbox !== false): ?>
-          <div class="well clearfix">
-          <?=$this->layout()->searchbox ?>
-
-                <?
-                /*
-                * This handles PerunShibboleth's Assertions returned by Shibboleth SP to easily detect returned attributes
-                * This part creates button to show/hide division containing messages, which is created later
-                */
-                if($assertionExportEnabled): ?>
-                    <button id="shibAssertionHandler" class="btn btn-link" style="float: right" onclick="handleShibAssertion()" >Show Shib Assertions</button>
-                    <script type="text/javascript">
-                    function handleShibAssertion() {
-                         var __display = document.getElementById('shibAssertionExport').style.display;
-                         if (__display == 'block') {
-                            document.getElementById("shibAssertionHandler").innerHTML = "Show Shib Assertions";
-                            document.getElementById('shibAssertionExport').style.display = 'none';
-                         } else {
-                            document.getElementById("shibAssertionHandler").innerHTML = "Hide Shib Assertions";
-                            document.getElementById('shibAssertionExport').style.display = 'block';
-                         }
-                    }
-                    </script>
-                <? endif; ?>
-
+          <? if ($this->layout()->frontpage == true): ?>
+          <h1><?=$this->transEsc("frontpage-header-text")?></h1>
+          <h4><?=$this->transEsc("frontpage-text")?></h4>
+          <div class="clearfix">
+        	   <div class='container'>
+               <?=$this->render('search/searchbox.phtml'); ?>
+               <?=$this->render('shib-assertion.phtml')?>
+               <a href="http://info.knihovny.cz/libraries" class="pull-right arrow-link"><?=$this->transEsc("frontpage-right-arrow-link")?> <i class="pr-interface-arrowright"></i></a>
+	           </div>
           </div>
           <? endif; ?>
       </div>
 
-        <?
-        /*
-        * This handles PerunShibboleth's Assertions returned by Shibboleth SP to easily detect returned attributes
-        * This part echoes messages to separate division to have it beautiful.
-        */
-        if($assertionExportEnabled): ?>
-            <div class="container" id="shibAssertionExport" style="display: none"><div class="well clearfix">
-            <? for($i = 0; $i < sizeof($assertions);) {
-                $assertion = htmlentities($assertions[$i]);
 
-                // Create new-lines between "><" char pairs
-                $assertion = str_replace("&gt;&lt;", "&gt;<br />&lt;", $assertion);
-
-                // Render it
-                ?><h3>Assertion number <?=++$i?></h3><?=$assertion ?><?
-            } ?>
-            </div></div>
-        <? endif; ?>
 
     </header>
+    <div class="container">
+        <? if ($this->layout()->searchbox !== false): ?>
+        <div class="clearfix">
+           <div class='container'>
+             <?=$this->layout()->searchbox ?>
+             <?=$this->render('shib-assertion.phtml')?>
+           </div>
+        </div>
+        <? endif; ?>
+    </div>
+
     <div role="main" class="main template-dir-<?=$this->templateDir?> template-name-<?=$this->templateName?>">
       <div class="container">
         <?=$this->layout()->content ?>
       </div>
     </div>
-    <footer role="contentinfo" class="hidden-print">
+    <footer class="hidden-print header-container">
       <div class="container">
         <?=$this->render('footer.phtml')?>
         <?=$this->layout()->poweredBy ?>
@@ -183,13 +242,12 @@
         <div class="modal-content">
           <div class="modal-header">
             <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
-            <h4 id="modalTitle" class="modal-title"></h4>
+            <h4 id="modalTitle" class="modal-title">&nbsp;</h4>
           </div>
           <div class="modal-body"><?=$this->transEsc('Loading') ?>...</div>
         </div>
       </div>
     </div>
-    <?=$this->googleanalytics()?>
     <?=$this->piwik()?>
   </body>
 </html>

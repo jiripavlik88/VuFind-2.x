@@ -26,7 +26,8 @@
  * @link     http://vufind.org/wiki/vufind2:developer_manual Wiki
  */
 namespace CPK\View\Helper\CPK;
-use Zend\ServiceManager\ServiceManager;
+use Zend\ServiceManager\ServiceManager,
+    CPK\Db\Table\PortalPage as PortalPageTable;
 
 /**
  * Factory for Bootstrap view helpers.
@@ -46,6 +47,7 @@ class Factory
         $config = $sm->getServiceLocator()->get('VuFind\Config')->get('config');
         return new Record($config);
     }
+
     /**
      * Construct the Flashmessages helper.
      *
@@ -57,8 +59,37 @@ class Factory
     {
         $messenger = $sm->getServiceLocator()->get('ControllerPluginManager')
             ->get('FlashMessenger');
-        return new Flashmessages($messenger);
+        $config = $sm->getServiceLocator()->get('VuFind\Config')->get('config');
+        return new Flashmessages($messenger, $config);
     }
 
+    public static function getLogos(ServiceManager $sm)
+    {
+        $config = $sm->getServiceLocator()->get('VuFind\Config')->get('config');
+        return new Logos($config);
+    }
 
+    public static function getGlobalNotifications(ServiceManager $sm)
+    {
+        $config = $sm->getServiceLocator()->get('VuFind\Config')->get('notifications');
+
+        $lang = $sm->getServiceLocator()->has('VuFind\Translator')
+        ? $sm->getServiceLocator()->get('VuFind\Translator')->getLocale()
+        : 'en';
+
+        return new GlobalNotifications($config, $lang, $sm->get('transesc'));
+    }
+    
+    public static function getPortalPages(ServiceManager $sm)
+    {
+        $portalPageTable = $sm->getServiceLocator()
+            ->get('VuFind\DbTablePluginManager')
+            ->get("portalpages");
+    
+        $languageCode = $sm->getServiceLocator()->has('VuFind\Translator')
+        ? $sm->getServiceLocator()->get('VuFind\Translator')->getLocale()
+        : 'en';
+    
+        return new PortalPages($portalPageTable, $languageCode);
+    }
 }

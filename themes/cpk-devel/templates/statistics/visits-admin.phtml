@@ -3,15 +3,19 @@
     $this->headTitle($this->translate('Statistics'));
 
     // Set up breadcrumbs:
-    $this->layout()->breadcrumbs = '<li><a href="'.$this->url('myresearch-home').'">'.$this->transEsc('Your Account').'</a></li>' 
-    							  .'<li><a href="'.$this->url('statistics-dashboard').'">' . $this->transEsc('Statistics') . '</a></li>'
-    							  .'<li class="active">' . $this->transEsc('Visits') . '</li>';
-    
+    $this->layout()->breadcrumbs = '<li><a title="' . $this->transEsc('Main page') . '" href="/Search">' . $this->transEsc('Main page') . '</a></li> '.
+    '<li><a href="'.$this->url('myresearch-home').'">'.$this->translate('Your Account').'</a></li>'
+    							  .'<li><a href="'.$this->url('statistics-dashboard').'">' . $this->translate('Statistics') . '</a></li>'
+    							  .'<li class="active">' . $this->translate('Visits') . '</li>';
+
     echo $this->render('statistics/menu.phtml');
-    
+
     echo $this->render('statistics/calendar.phtml');
-    
-    $libCard  = $this->urlGetParams['libCard'];
+
+    $libCard = null;
+
+    if (isset($this->urlGetParams['libCard']))
+        $libCard  = $this->urlGetParams['libCard'];
 ?>
 
 <div class="row">
@@ -23,7 +27,7 @@
 				    <div class="panel-heading">
 				        <h3 class="panel-title">
 				            <i class="fa fa-clock-o fa-fw"></i>
-				             <?= $this->transEsc('Visits in time') ?>
+				             <?= $this->translate('Visits in time') ?>
 				        </h3>
 				    </div>
 				    <div class="panel-body">
@@ -33,14 +37,14 @@
 			</div>
 		</div>
 		<!-- /.row -->
-		
+
 		<div class="row">
 			<div class="col-lg-4">
 				<div class="panel panel-default">
 					<div class="panel-heading">
 						<h3 class="panel-title">
 							<i class="fa fa-user fa-fw"></i>
-		 					<?= $this->transEsc('All Visitors') ?>
+		 					<?= $this->translate('All Visitors') ?>
 						</h3>
 					</div>
 					<div class="panel-body">
@@ -48,14 +52,14 @@
 					</div>
 				</div>
 			</div>
-			
+
 			<? if ( ($libCard && $libCard === 'all') || (! $libCard)) : ?>
 			<div class="col-lg-4">
 				<div class="panel panel-default">
 					<div class="panel-heading">
 						<h3 class="panel-title">
 							<i class="fa fa-user fa-fw"></i>
-		 					<?= $this->transEsc('Anonymous Visitors') ?>
+		 					<?= $this->translate('Anonymous Visitors') ?>
 						</h3>
 					</div>
 					<div class="panel-body">
@@ -68,7 +72,7 @@
 					<div class="panel-heading">
 						<h3 class="panel-title">
 							<i class="fa fa-user fa-fw"></i>
-		 					<?= $this->transEsc('Authenticated Visitors') ?>
+		 					<?= $this->translate('Authenticated Visitors') ?>
 						</h3>
 					</div>
 					<div class="panel-body">
@@ -77,17 +81,17 @@
 				</div>
 			</div>
 			<? endif; ?>
-			
+
 		</div>
 		<!-- /.row -->
-		
+
 		<div class='row'>
 			<div class="col-lg-6">
 				<div class="panel panel-default">
 					<div class="panel-heading">
 						<h3 class="panel-title">
-							<i class="fa fa-users fa-fw"></i> 
-							<?= $this->transEsc('Dashboard') ?>
+							<i class="fa fa-users fa-fw"></i>
+							<?= $this->translate('Dashboard') ?>
 						</h3>
 					</div>
 					<div class="panel-body">
@@ -96,15 +100,15 @@
 								<tbody>
 									<tr>
 										<td>
-											<?= $this->transEsc('Total visits') ?>
+											<?= $this->translate('Total visits') ?>
 										</td>
 										<td>
-											<?= $this->totalVisits ?>
+											<?= number_format($this->totalVisits, 0, ',', ' ') ?>
 										</td>
 									</tr>
 									<!--<tr>
 										<td>
-											<?= $this->transEsc('Total time') ?>
+											<?= $this->translate('Total time') ?>
 										</td>
 										<td>
 											<?= $this->totalTimeOnSite ?>
@@ -112,7 +116,7 @@
 									</tr>-->
 									<tr>
 										<td>
-											<?= $this->transEsc('Average visit time') ?>
+											<?= $this->translate('Average visit time') ?>
 										</td>
 										<td>
 											<?= $this->avgTimeOnSite ?>
@@ -120,33 +124,33 @@
 									</tr>
 									<tr>
 										<td>
-											<?= $this->transEsc('Actions') ?>
+											<?= $this->translate('Actions') ?>
 										</td>
 										<td>
-											<?= $this->nbActions ?>
-										</td>
-									</tr>
-									<tr>
-										<td>
-											<?= $this->transEsc('Actions per visit') ?>
-										</td>
-										<td>
-											<?= $this->nbActionPerVisit ?>
+											<?= number_format($this->nbActions, 0, ',', ' ') ?>
 										</td>
 									</tr>
 									<tr>
 										<td>
-											<?= $this->transEsc('Online borrowers') ?>
+											<?= $this->translate('Actions per visit') ?>
 										</td>
 										<td>
-											<?= $this->nbOnlineUsers ?>
+											<?= number_format($this->nbActionPerVisit, 1, ',', ' ') ?>
+										</td>
+									</tr>
+									<tr>
+										<td>
+											<?= $this->translate('Online borrowers') ?>
+										</td>
+										<td>
+											<?= number_format($this->nbOnlineUsers, 0, ',', ' ') ?>
 										</td>
 									</tr>
 									<? if (($libCard) && ($libCard === 'all')) : ?>
-									<tr><td><?= $this->translate('Returning anonymous visitors') ?></td><td><?= $this->returningAnonymeVisitorsCount ?></td></tr>
-									<tr><td><?= $this->translate('Returning authenticated visitors') ?></td><td><?= $this->returningAuthenticatedVisitorsCount ?></td></tr>
-									<tr><td><?= $this->translate('New anonymous visitors') ?></td><td><?= $this->newAnonymeVisitorsCount ?></td></tr>
-									<tr><td><?= $this->translate('New authenticated visitors') ?></td><td><?= $this->newAuthenticatedVisitorsCount ?></td></tr>
+									<tr><td><?= $this->translate('Returning anonymous visitors') ?></td><td><?= number_format($this->returningAnonymeVisitorsCount, 0, ',', ' ') ?></td></tr>
+									<tr><td><?= $this->translate('Returning authenticated visitors') ?></td><td><?= number_format($this->returningAuthenticatedVisitorsCount, 0, ',', ' ') ?></td></tr>
+									<tr><td><?= $this->translate('New anonymous visitors') ?></td><td><?= number_format($this->newAnonymeVisitorsCount, 0, ',', ' ') ?></td></tr>
+									<tr><td><?= $this->translate('New authenticated visitors') ?></td><td><?= number_format($this->newAuthenticatedVisitorsCount, 0, ',', ' ') ?></td></tr>
 									<? endif; ?>
 								</tbody>
 							</table>
@@ -156,7 +160,7 @@
 			</div>
 		</div>
 		<!-- /.row -->
-		
+
 	</div>
 	<div class="<?=$this->layoutClass('sidebar')?>">
     	<?=$this->context($this)->renderInContext("myresearch/menu.phtml", array('active' => 'statistics'))?>
@@ -164,10 +168,9 @@
 </div>
 <!-- /.row -->
 
-<script src="js/raphael.min.js"></script>
-<script src="vendor/jquery.min.js"></script>
-<script src="js/morris-0.4.1.min.js"></script>
-<script src="js/jquery-ui.min.js"></script>
+<? $this->headScript()->appendFile("raphael.min.js"); ?>
+<? $this->headScript()->appendFile("morris-0.4.1.min.js"); ?>
+<? $this->headScript()->appendFile("jquery-ui.min.js"); ?>
 <script>
 	jQuery( document ).ready( function( $ ) {
 
@@ -178,11 +181,11 @@
 	    Morris.Donut( {
 	        element: 'visits-comparision',
 	        data: [
-	        	{ label: "<?= $this->transEsc('Returning readers'); ?>", 
-		          value: <?= $this->returningVisitorsCount ?> 
+	        	{ label: "<?= $this->translate('Returning readers'); ?>",
+		          value: <?= number_format($this->returningVisitorsCount, 0, ',', ' ') ?>
 		        },
-			    { label: "<?= $this->transEsc('New readers'); ?>", 
-				  value: <?= $this->newVisitorsCount ?> 
+			    { label: "<?= $this->translate('New readers'); ?>",
+				  value: <?= number_format($this->newVisitorsCount, 0, ',', ' ') ?>
 				},
 			],
 	        resize: true
@@ -191,11 +194,11 @@
 	    Morris.Donut( {
 	        element: 'visits-comparision-anonymous',
 	        data: [
-	        	{ label: "<?= $this->transEsc('Returning readers'); ?>", 
-		          value: <?= $this->returningAnonymeVisitorsCount ?> 
+	        	{ label: "<?= $this->translate('Returning readers'); ?>",
+		          value: <?= number_format($this->returningAnonymeVisitorsCount, 0, ',', ' ') ?>
 		        },
-			    { label: "<?= $this->transEsc('New readers'); ?>", 
-				  value: <?= $this->newAnonymeVisitorsCount ?> 
+			    { label: "<?= $this->translate('New readers'); ?>",
+				  value: <?= number_format($this->newAnonymeVisitorsCount, 0, ',', ' ') ?>
 				},
 			],
 	        resize: true
@@ -204,36 +207,36 @@
 	    Morris.Donut( {
 	        element: 'visits-comparision-authenticated',
 	        data: [
-	        	{ label: "<?= $this->transEsc('Returning readers'); ?>", 
-		          value: <?= $this->returningAuthenticatedVisitorsCount ?> 
+	        	{ label: "<?= $this->translate('Returning readers'); ?>",
+		          value: <?= number_format($this->returningAuthenticatedVisitorsCount, 0, ',', ' ') ?>
 		        },
-			    { label: "<?= $this->transEsc('New readers'); ?>", 
-				  value: <?= $this->newAuthenticatedVisitorsCount ?> 
+			    { label: "<?= $this->translate('New readers'); ?>",
+				  value: <?= number_format($this->newAuthenticatedVisitorsCount, 0, ',', ' ') ?>
 				},
 			],
 	        resize: true
 	    });
 		<? endif; ?>
-	    
+
 	 	// Initializes area chart for visits in time
 	    Morris.Area( {
 	        element: 'visits-in-time',
 	        data: [
-	   	    	<?php 
+	   	    	<?php
 	   	    		$data = "";
 	   	    		foreach ($this->visitsInTime as $key => $value) {
 						$data .= "{ period: '$key', novi: ".$value["newVisits"].", vracejici: ".$value["returningVisits"]." },";
-	   	    		}	   
-	   	    		echo rtrim($data, ",");	   
+	   	    		}
+	   	    		echo rtrim($data, ",");
 				?>
 	        ],
 	        xkey: 'period',
 	        ykeys: [ 'novi', 'vracejici' ],
-	        labels: [ '<?= $this->transEsc('New visits'); ?>', '<?= $this->transEsc('Returning visits'); ?>' ],
+	        labels: [ '<?= $this->translate('New visits'); ?>', '<?= $this->translate('Returning visits'); ?>' ],
 	        pointSize: 2,
 	        parseTime: false,
 	        hideHover: 'auto'
 	      });
-		
+
 	});
 </script>

@@ -56,4 +56,20 @@ class Factory
         );
     }
 
+    /**
+     * Factory for MultiBackend driver.
+     *
+     * @param ServiceManager $sm Service manager.
+     *
+     * @return MultiBackend
+     */
+    public static function getMultiBackend(ServiceManager $sm)
+    {
+        return new MultiBackend(
+            $sm->getServiceLocator()->get('VuFind\Config'),
+            $sm->getServiceLocator()->get('VuFind\ILSAuthenticator'),
+            $sm->getServiceLocator()->get('VuFind\Search')
+        );
+    }
+
 }

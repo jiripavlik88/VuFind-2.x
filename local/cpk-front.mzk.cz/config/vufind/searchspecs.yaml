@@ -136,13 +136,19 @@
 # These searches use Dismax when possible:
 Author:
   DismaxFields:
+    - author_search^150
     - author^100
     - author_fuller^50
     - author2
     - author_additional
+    - author_find
   DismaxParams:
     - [bq, "relevancy_str:default^2"]
   QueryFields:
+    author_search:
+      - [onephrase, 350]
+      - [and, 200]
+      - [or, 100]
     author:
       - [onephrase, 350]
       - [and, 200]
@@ -156,6 +162,10 @@ Author:
       - [and, 50]
       - [or, ~]
     author_additional:
+      - [onephrase, 100]
+      - [and, 50]
+      - [or, ~]
+    author_find:
       - [onephrase, 100]
       - [and, 50]
       - [or, ~]
@@ -301,7 +311,7 @@ AllFields:
     - title_new^100
     - series^50
     - series2^30
-    - author^300
+    - author_search^700
     - author_fuller^150
     - contents^10
     - topic_unstemmed^550
@@ -316,7 +326,9 @@ AllFields:
     - isbn
     - issn
   DismaxParams:
-    - [bq, "relevancy_str:default^50000"]
+    - [bq, "cpk_detected_format_facet_str_mv:0/BOOKS/^1000"]
+#  DismaxParams:
+#    - [bq, "relevancy_str:default^50000"]
   QueryFields:
     0:
       0:
@@ -340,7 +352,7 @@ AllFields:
       - [and, 50]
     series2:
       - [and, 30]
-    author:
+    author_search:
       - [onephrase, 300]
       - [and, 250]
     author_fuller:
@@ -608,7 +620,7 @@ publisher:
 
 id001:
   QueryFields:
-    id001_search_str:
+    id001_search:
       - [onephrase, 100] 
       - [and, 50]
       - [or, ~]
@@ -636,14 +648,84 @@ placeOfPublication:
 
 counrtyOfPublication:
   QueryFields:
-    country_txt:
+    country_str:
       - [onephrase, 100] 
       - [and, 50]
       - [or, ~]
 
-cityInstitution:
+adv_search_title_series:
   QueryFields:
-    city_institution_cs_search_txt_mv:
-      - [onephrase, 100] 
+    titleSeries_search_txt_mv:
+      - [onephrase, 100]
+      - [and, 50]
+      - [or, ~]
+
+adv_search_author_corporation:
+  QueryFields:
+    authorCorporation_search_txt_mv:
+      - [onephrase, 100]
+      - [and, 50]
+      - [or, ~]
+
+adv_search_subject_keywords:
+  QueryFields:
+    subjectKeywords_search_txt_mv:
+      - [onephrase, 100]
+      - [and, 50]
+      - [or, ~]
+
+adv_search_source_title:
+  QueryFields:
+    sourceTitle_search_txt_mv:
+      - [onephrase, 100]
+      - [and, 50]
+      - [or, ~]
+
+adv_search_isbn_issn_ismn:
+  QueryFields:
+    issnIsbnIsmn_search_str_mv:
+      - [onephrase, 100]
+      - [and, 50]
+      - [or, ~]
+
+adv_search_call_number:
+  QueryFields:
+    callNumber_search_txt_mv:
+      - [onephrase, 100]
+      - [and, 50]
+      - [or, ~]
+
+adv_search_publisher:
+  QueryFields:
+    publisher_search_txt_mv:
+      - [onephrase, 100]
+      - [and, 50]
+      - [or, ~]
+
+adv_search_year_of_publication:
+  QueryFields:
+    publishDate:
+      - [onephrase, 100]
+      - [and, 50]
+      - [or, ~]
+
+adv_search_place_of_publication:
+  QueryFields:
+    placeOfPublication_txt_mv:
+      - [onephrase, 100]
+      - [and, 50]
+      - [or, ~]
+
+adv_search_001:
+  QueryFields:
+    id001_search:
+      - [onephrase, 100]
+      - [and, 50]
+      - [or, ~]
+
+adv_search_nbn:
+  QueryFields:
+    cnb_search_str:
+      - [onephrase, 100]
       - [and, 50]
       - [or, ~]

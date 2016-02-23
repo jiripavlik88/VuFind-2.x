@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Aleph ILS driver
  *
@@ -7,10 +8,7 @@
  * Copyright (C) UB/FU Berlin
  *
  * last update: 7.11.2007
- * tested with X-Server Aleph 18.1.
- *
- * TODO: login, course information, getNewItems, duedate in holdings,
- * https connection to x-server, ...
+ * tested with X-Server Aleph 22
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2,
@@ -32,28 +30,468 @@
  * @link     http://vufind.org/wiki/vufind2:building_an_ils_driver Wiki
  */
 namespace CPK\ILS\Driver;
+
 use MZKCommon\ILS\Driver\Aleph as AlephBase;
 
 class Aleph extends AlephBase
 {
 
-    public function getMyProfile($user) {
-        $profile = parent::getMyProfile($user);
+    const CONFIG_ARRAY_DELIMITER = ',';
 
-        $eppnScope = $this->config['Catalog']['eppnScope'];
+    protected $available_statuses = [];
 
-        $blocks = null;
+    protected $logo = null;
 
-        foreach ($profile['blocks'] as $block) {
-            if (! empty($eppnScope)) {
-                $blocks[$eppnScope] = (string) $block;
-            } else
-                $blocks[] = (string) $block;
+    protected $maxItemsParsed;
+
+    public function init()
+    {
+        parent::init();
+        
+        if (isset($this->config['Catalog']['available_statuses'])) {
+            $this->available_statuses = explode(self::CONFIG_ARRAY_DELIMITER, $this->config['Catalog']['available_statuses']);
         }
+        
+        if (isset($this->config['Catalog']['logo'])) {
+            $this->logo = $this->config['Catalog']['logo'];
+        }
+        
+        if (isset($this->config['Availability']['maxItemsParsed'])) {
+            $this->maxItemsParsed = intval($this->config['Availability']['maxItemsParsed']);
+        }
+        
+        if (! isset($this->maxItemsParsed) || $this->maxItemsParsed < 2) {
+            $this->maxItemsParsed = 10;
+        }
+        
+        if ($this->idResolver instanceof \VuFind\ILS\Driver\SolrIdResolver) {
+            $this->idResolver = new SolrIdResolver($this->searchService, $this->config);
+        }
+    }
 
+    /**
+     * Cancel Holds
+     *
+     * Attempts to Cancel a hold or recall on a particular item. The
+     * data in $cancelDetails['details'] is determined by
+     * getCancelHoldDetails().
+     *
+     * @param array $details
+     *            An array of item and patron data
+     *            
+     * @return array An array of data on each request including
+     *         whether or not it was successful and a system message (if
+     *         available)
+     */
+    public function cancelHolds($details)
+    {
+        $patron = $details['patron'];
+        $patronId = $patron['id'];
+        $count = 0;
+        $statuses = array();
+        
+        $statuses['fails'] = 0;
+        
+        foreach ($details['details'] as $id) {
+            
+            try {
+                $result = $this->alephWebService->doRestDLFRequest(array(
+                    'patron',
+                    $patronId,
+                    'circulationActions',
+                    'requests',
+                    'holds',
+                    $id
+                ), null, "DELETE");
+            } catch (\Exception $ex) {
+                $statuses[$id] = array(
+                    'success' => false,
+                    'status' => 'cancel_hold_failed',
+                    'sysMessage' => $ex->getMessage()
+                );
+                continue;
+            }
+            
+            $reply_code = $result->{'reply-code'};
+            if ($reply_code != "0000") {
+                $message = $result->{'del-pat-hold'}->{'note'};
+                if ($message == null) {
+                    $message = $result->{'reply-text'};
+                }
+                $statuses[$id] = array(
+                    'success' => false,
+                    'status' => 'cancel_hold_failed',
+                    'sysMessage' => (string) $message
+                );
+            } else {
+                $count ++;
+                $statuses[$id] = array(
+                    'success' => true,
+                    'status' => 'cancel_hold_ok'
+                );
+            }
+        }
+        $statuses['count'] = $count;
+        return $statuses;
+    }
+
+    public function getMyProfile($user)
+    {
+        $profile = parent::getMyProfile($user);
+        
+        $blocks = [];
+        $translatedBlock = '';
+        
+        if (isset($profile['blocks']))
+            foreach ($profile['blocks'] as $block) {
+                if (isset($this->availabilitySource)) {
+                    $translatedBlock = $this->translator->getTranslator()->translate($this->availabilitySource . " " . "Block" . " " . (string) $block);
+                    
+                    /* Skip blocks which are not translated. */
+                    if ($translatedBlock === $this->availabilitySource . " " . "Block" . " " . (string) $block)
+                        continue;
+                } else {
+                    $translatedBlock = $this->translator->getTranslator()->translate("Block " . (string) $block);
+                    if ($translatedBlock === "Block " . (string) $block)
+                        continue;
+                }
+                
+                if (! empty($this->logo)) {
+                    if (! empty($blocks[$this->logo]))
+                        $blocks[$this->logo] .= ", " . $translatedBlock;
+                    else
+                        $blocks[$this->logo] = $translatedBlock;
+                } else
+                    $blocks[] = $translatedBlock;
+            }
+        
         $profile['blocks'] = $blocks;
-
+        
         return $profile;
+    }
 
+    public function getMyTransactions($user, $history = false, $limit = 0)
+    {
+        $transactions = parent::getMyTransactions($user, $history, $limit);
+        
+        foreach ($transactions as &$transaction) {
+            $transaction['loan_id'] = $transaction['item_id'];
+        }
+        
+        return $transactions;
+    }
+
+    /**
+     * Get Status
+     *
+     * This is responsible for retrieving the status information of a certain
+     * record.
+     *
+     * @param string $item_id
+     *            The record id to retrieve the holdings for
+     *            
+     * @throws ILSException
+     * @return mixed On success, an associative array with the following keys:
+     *         id, availability (boolean), status, location, reserve,
+     *         callnumber.
+     */
+    public function getStatuses($ids, $patron = [], $filter = [], $bibId = null)
+    {
+        $statuses = array();
+        
+        $idsCount = count($ids);
+        
+        $additionalAttributes = [
+            'view' => 'full'
+        ];
+        
+        if ($filter !== null)
+            foreach ($filter as $name => $value) {
+                $additionalAttributes[$name] = $value;
+            }
+        
+        if (! empty($patron['id'])) {
+            $additionalAttributes['patron'] = $patron['id'];
+        }
+        
+        if ($this->maxItemsParsed === - 1 || $idsCount <= $this->maxItemsParsed) {
+            // Query all items at once ..
+            
+            $path_elements = array(
+                'record',
+                str_replace('-', '', $bibId),
+                'items'
+            );
+            
+            $xml = $this->alephWebService->doRestDLFRequest($path_elements, $additionalAttributes);
+            
+            if (! isset($xml->{'items'})) {
+                return $statuses;
+            }
+            
+            foreach ($xml->{'items'}->{'item'} as $item) {
+                
+                $item_id = $item->attributes()->href;
+                $item_id = substr($item_id, strrpos($item_id, '/') + 1);
+                
+                // do not process ids which are not in desired $ids array
+                if (array_search($item_id, $ids) === false)
+                    continue;
+                
+                $statuses[] = $this->parseItem($bibId, $item_id, $item, $patron);
+            }
+        } else // Query one by one item
+            foreach ($ids as $item_id) {
+                
+                if (isSeT($additionalAttributes['patron']))
+                    // We can search for patron specific bib info
+                    // Example URL:
+                    // patron/700/record/MZK01000244261/items/MZK50000244261006690
+                    $path_elements = array(
+                        'patron',
+                        $additionalAttributes['patron'],
+                        'record',
+                        str_replace('-', '', $bibId),
+                        'items',
+                        $item_id
+                    );
+                else
+                    $path_elements = array(
+                        'record',
+                        str_replace('-', '', $bibId),
+                        'items',
+                        $item_id
+                    );
+                
+                $xml = $this->alephWebService->doRestDLFRequest($path_elements, $additionalAttributes);
+                
+                if (! isset($xml->{'item'})) {
+                    continue;
+                }
+                
+                $item = $xml->{'item'};
+                
+                $statuses[] = $this->parseItem($bibId, $item_id, $item, $patron);
+                
+                // Returns parsed items to show it to user
+                if (count($statuses) === $this->maxItemsParsed)
+                    break;
+            }
+        
+        return $statuses;
+    }
+
+    /**
+     * Parses the status from <status> tag
+     *
+     * Returns an array of status, dueDate (which will often be null) & holdType
+     *
+     * @param \SimpleXMLElement $item            
+     * @return AlephItem $alephItem
+     */
+    protected function parseItem($bibId, $item_id, \SimpleXMLElement $item, $patron)
+    {
+        $item_status = $this->alephTranslator->tab15Translate($item);
+        if ($item_status['opac'] != 'Y') {
+            continue;
+        }
+        
+        $available = false;
+        $reserve = ($item_status['request'] == 'C') ? 'N' : 'Y';
+        $z30 = $item->z30;
+        $collection = (string) $z30->{'z30-collection'};
+        $collection_desc = array(
+            'desc' => $collection
+        );
+        $collection_desc = $this->alephTranslator->tab40Translate($item);
+        $sub_library_code = (string) $item->{'z30-sub-library-code'};
+        $requested = false;
+        $duedate = null;
+        $addLink = false;
+        $status = (string) $item->{'status'};
+        if (in_array($status, $this->available_statuses)) {
+            $available = true;
+        }
+        if ($item_status['request'] == 'Y' && $available == false) {
+            $addLink = true;
+        }
+        // Customized from here
+        if (! empty($patron)) {
+            $hold_request = $item->xpath('info[@type="HoldRequest"]/@allowed');
+            
+            if (! empty($hold_request))
+                $addLink = ($hold_request[0] == 'Y');
+            // To here
+        }
+        $matches = [];
+        if (preg_match("/([0-9]*\\/[a-zA-Z]*\\/[0-9]*);([a-zA-Z ]*)/", $status, $matches)) {
+            $duedate = $this->parseDate($matches[1]);
+            $requested = (trim($matches[2]) == "Requested");
+        } else 
+            if (preg_match("/([0-9]*\\/[a-zA-Z]*\\/[0-9]*)/", $status, $matches)) {
+                $duedate = $this->parseDate($matches[1]);
+            }
+        // process duedate_status
+        $duedate_status = $item_status['desc'];
+        if ($available && $this->duedates) {
+            foreach ($this->duedates as $key => $value) {
+                if (preg_match($value, $item_status['desc'])) {
+                    $duedate_status = $key;
+                    break;
+                }
+            }
+        } else 
+            if (! $available && ($status == "On Hold" || $status == "Requested")) {
+                $duedate_status = "requested";
+            }
+        
+        $note = (string) $z30->{'z30-note-opac'};
+        
+        $availability = (string) $z30->{'z30-item-status'};
+        
+        // Customized from here
+        $isDueDate = preg_match('/^[0-9]+\/.+\/[0-9]+/', $status);
+        
+        $holdType = 'Recall This';
+        
+        if ($isDueDate) {
+            
+            $duedate = (string) $duedate;
+            
+            if (empty($duedate)) {
+                $duedate = $status;
+            }
+            
+            $label = 'label-warning';
+            $status = 'On Loan';
+        } else {
+            
+            if ($available) {
+                
+                $status = 'available';
+                $holdType = 'Place a Hold';
+                $label = 'label-success';
+            } else {
+                $label = 'label-danger';
+                $status = 'unavailable';
+            }
+        }
+        
+        return [
+            'id' => $bibId,
+            'item_id' => $item_id,
+            'availability' => $availability,
+            'status' => $status,
+            'location' => $sub_library_code,
+            'reserve' => 'N',
+            'callnumber' => (string) $z30->{'z30-call-no'},
+            'duedate' => $duedate,
+            'number' => (string) $z30->{'z30-inventory-number'},
+            'barcode' => (string) $z30->{'z30-barcode'},
+            'description' => (string) $z30->{'z30-description'},
+            'notes' => ($note == null) ? null : array(
+                $note
+            ),
+            'is_holdable' => true,
+            'addLink' => $addLink,
+            'holdtype' => $holdType,
+                /* below are optional attributes*/
+                'duedate_status' => $status,
+            'collection' => (string) $collection,
+            'collection_desc' => (string) $collection_desc['desc'],
+            'callnumber_second' => (string) $z30->{'z30-call-no-2'},
+            'sub_lib_desc' => (string) $item_status['sub_lib_desc'],
+            'no_of_loans' => (string) $z30->{'$no_of_loans'},
+            'requested' => (string) $requested,
+            // Customized from here
+            'label' => $label
+        ];
+    }
+
+    /**
+     * Get profile information using X-server.
+     *
+     * @param array $user
+     *            The patron array
+     *            
+     * @throws ILSException
+     * @return array Array of the patron's profile data on success.
+     */
+    public function getMyProfileX($user)
+    {
+        $recordList = array();
+        if (! isset($user['college'])) {
+            $user['college'] = $this->useradm;
+        }
+        $xml = $this->alephWebService->doXRequest("bor-info", array(
+            'loans' => 'N',
+            'cash' => 'N',
+            'hold' => 'N',
+            'library' => $user['college'],
+            'bor_id' => $user['id']
+        ), true);
+        $id = (string) $xml->z303->{'z303-id'};
+        $address1 = (string) $xml->z304->{'z304-address-2'};
+        $address2 = (string) $xml->z304->{'z304-address-3'};
+        $zip = (string) $xml->z304->{'z304-zip'};
+        $phone = (string) $xml->z304->{'z304-telephone'};
+        $barcode = (string) $xml->z304->{'z304-address-0'};
+        $group = (string) $xml->z305->{'z305-bor-status'};
+        $expiry = (string) $xml->z305->{'z305-expiry-date'};
+        $credit_sum = (string) $xml->z305->{'z305-sum'};
+        $credit_sign = (string) $xml->z305->{'z305-credit-debit'};
+        $name = (string) $xml->z303->{'z303-name'};
+        if (strstr($name, ",")) {
+            list ($lastname, $firstname) = explode(",", $name);
+        } else {
+            $lastname = $name;
+            $firstname = "";
+        }
+        if ($credit_sign == null) {
+            $credit_sign = "C";
+        }
+        $recordList['firstname'] = $firstname;
+        $recordList['lastname'] = $lastname;
+        $recordList['cat_username'] = $user['id'];
+        if (isset($user['email'])) {
+            $recordList['email'] = $user['email'];
+        } else {
+            $recordList['email'] = (string) $xml->z304->{'z304-email-address'};
+        }
+        $recordList['address1'] = $address1;
+        $recordList['address2'] = $address2;
+        $recordList['zip'] = $zip;
+        $recordList['phone'] = $phone;
+        $recordList['group'] = $group;
+        $recordList['barcode'] = $barcode;
+        $recordList['expire'] = $this->parseDate($expiry);
+        $recordList['credit'] = $expiry;
+        $recordList['credit_sum'] = $credit_sum;
+        $recordList['credit_sign'] = $credit_sign;
+        $recordList['id'] = $id;
+        // deliquencies
+        $blocks = array();
+        foreach (array(
+            'z303-delinq-1',
+            'z303-delinq-2',
+            'z303-delinq-3'
+        ) as $elementName) {
+            $block = (string) $xml->z303->{$elementName};
+            if (! empty($block) && $block != '00') {
+                $blocks[] = $block;
+            }
+        }
+        foreach (array(
+            'z305-delinq-1',
+            'z305-delinq-2',
+            'z305-delinq-3'
+        ) as $elementName) {
+            $block = (string) $xml->z305->{$elementName};
+            if (! empty($block) && $block != '00') {
+                $blocks[] = $block;
+            }
+        }
+        $recordList['blocks'] = array_unique($blocks);
+        return $recordList;
     }
 }

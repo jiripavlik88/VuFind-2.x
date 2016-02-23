@@ -1,12 +1,44 @@
 [System]
 debug           = false
 
+; Activate Captcha validation on select forms
+; VuFind will use reCaptcha validation to prevent bots from using certain actions of
+; your instance. See http://www.google.com/recaptcha for more information on Captcha
+; and create keys for your domain.
+; You will need to provide a sslcapath in the [Http] section for your Captcha to work.
+[Captcha]
+siteKey  = "6LceOg4TAAAAABNlNWpIH0cEjMhBOG_ec9eguSD_"
+secretKey = "6LceOg4TAAAAAMIpTAknf9opttn04gqVrB0aS0rZ"
+; Valid theme values: dark, light
+theme      = light
+; Valid forms values: changePassword, email, newAccount, passwordRecovery, sms
+; Use * for all supported forms
+forms = changePassword, email, newAccount, passwordRecovery, sms
+
 [Site]
 url             = https://cpk-front.mzk.cz/
 email           = vufind@mzk.cz
+theme		= cpk-devel-green
+defaultCurrency	= CZK
+browserDetectLanguage = false
+defaultAccountPage = CheckedOut
+
+notificationsEnabled = true
+;notificationsEnabled = false
+
+offlineFavoritesEnabled = true
+;offlineFavoritesEnabled = false
+
+[Record]
+;This will build links from 7xx fiedls. Link is build from subfields x or z for searching by ISN, 
+; or t for searching by AllFields.\
+;Anchor is build from subfields t and g. Anchor in field 773 is build from all subfields.
+;It is better than ;marc_links so use this instead of ;marc_link
+fields_in_core = "773,770,772,777,780,785"
 
 [Catalog]
 library_cards = true
+minHoldingsToApplyFilters = 30
 
 [Index]
 engine          = Solr
@@ -14,12 +46,11 @@ engine          = Solr
 ;default_core    = biblio
 url		= http://cpk-front.mzk.cz:8080/solr
 ;default_core   = index
-default_core    = dedup1
+default_core    = beta
 
 [Authentication]
-method		= PerunShibboleth
-
-;method		= ShibbolethIdentityManager
+;method		= PerunShibboleth
+method		= ShibbolethIdentityManager
 ;method		= ShibbolethWithWAYF
 
 [Shibboleth]
@@ -95,7 +126,6 @@ ufe.cas.cz = https://jiftach.cas.cz/loga/logo-ufe-44.png
 cesnet.cz = https://pki.cesnet.cz/_media/cs/cesnet-logo-200.gif
 amu.cz = https://www2.eduid.cz/idp-loga/amu.png
 techlib.cz = https://www.techlib.cz/public/images/logo-eduid.png
-techlib.cz = http://www.techlib.cz/public/images/logo-eduid.png
 img.cas.cz = https://idp.img.cas.cz/images/img_logo_small.png
 medvik.cz = https://www.medvik.cz/images/medvik-logo.png
 upol.cz = https://www2.eduid.cz/idp-loga/upol.gif
@@ -132,9 +162,20 @@ itam.cas.cz = https://jiftach.cas.cz/loga/logo-itam-44.png
 fzu.cas.cz = https://jiftach.cas.cz/loga/logo-fzu-40.png
 ibp.cas.cz = https://jiftach.cas.cz/loga/logo-ibp-44.png
 osu.cz = https://idptoo.osu.cz/simplesaml/logo_ou.png
-ceska-trebova.knihovny.cz = https://login.knihovny.cz/ceska-trebova/logo.png
+vkol.cz = https://shibo.vkol.cz/logo_90.png
+digiknihovna.cz = https://shibboleth.digiknihovna.cz/logo.png
+vkta.knihovny.cz = https://vkta.knihovny.cz/logo.png
+kfbz.knihovny.cz = http://kfbz.cz/sites/all/themes/kzlin/images/logo2.png
 
 facebook.extidp.cesnet.cz = https://extidp.cesnet.cz/idp/loga/fb50.png
 mojeid.extidp.cesnet.cz = https://extidp.cesnet.cz/idp/loga/mojeid50.png
 google.extidp.cesnet.cz = https://extidp.cesnet.cz/idp/loga/googleicon50.png
 linkedin.extidp.cesnet.cz = https://extidp.cesnet.cz/idp/loga/LinkedIn50.png
+
+ntk 	= https://www.techlib.cz/public/images/logo-eduid.png
+nlk 	= https://www.medvik.cz/images/medvik-logo.png
+svkhk 	= https://aleph.svkhk.cz/idp/images/logo_40.png
+nkp	= https://www2.eduid.cz/idp-loga/nkp.png
+tre 	= https://shibboleth.digiknihovna.cz/logo.png
+mzk 	= https://www2.eduid.cz/idp-loga/mzk.png
+vkta 	= https://vkta.knihovny.cz/logo.png

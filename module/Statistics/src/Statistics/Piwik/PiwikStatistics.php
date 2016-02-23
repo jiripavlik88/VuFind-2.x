@@ -118,12 +118,12 @@ class PiwikStatistics implements PiwikStatisticsInterface
 	 * Sets initial params
 	 * 
 	 * @param	\Zend\Config\Config $config
-	 * @param	array $drivers
+	 * @param	array $drivers Array of strings
 	 *
 	 * @todo set missing default urls
 	 * @todo set variables in config [PiwikStatistics]
 	 */
-	public function __construct(\Zend\Config\Config $config, $drivers)
+	public function __construct(\Zend\Config\Config $config, array $drivers)
 	{
 		$this->siteId 			    = isset($config->PiwikStatistics->site_id) 				  ? $config->PiwikStatistics->site_id 			  	  : 1;
 		$this->catalogBrowserUrl    = isset($config->PiwikStatistics->catalog_browser_url) 	  ? $config->PiwikStatistics->catalog_browser_url     : "https://vufind.localhost/Browse/";
@@ -140,6 +140,10 @@ class PiwikStatistics implements PiwikStatisticsInterface
 		$this->drivers 				= $drivers;
 	}
 	
+	/**
+	 * Returns array of strings representing driver names
+	 * @return array
+	 */
 	public function getDrivers()
 	{
 		return $this->drivers;
@@ -230,7 +234,6 @@ class PiwikStatistics implements PiwikStatisticsInterface
 		
 		if ($dataArray === NULL)
 			throw new \Exception('Json cannot be decoded or the encoded data is deeper than the recursion limit.');
-	
 		
 		if ((isset($dataArray['result']) && ($dataArray['result'] == 'error')))
 			throw new \Exception($dataArray['message']);
@@ -329,11 +332,10 @@ class PiwikStatistics implements PiwikStatisticsInterface
 					$params[$key] = $value;
 				} else {
 					if($key == 'segment')
-						$param[$key] .= ';'.$value;
+						$params[$key] .= ';'.$value;
 				}
 			}
 		}
-		
 
 		$dataArray = $this->getResultDataAsArrayFromRequest($period, $date, $params);
 		
@@ -503,7 +505,7 @@ class PiwikStatistics implements PiwikStatisticsInterface
 		if ($userLibCard)
 			$params['segment'] = 'customVariablePageName1==UserLibcard;customVariablePageValue1=='.$userLibCard;
 	
-		$dataArray = $this->getResultDataAsArrayFromRequest($period, $date, $params, 1);
+		$dataArray = $this->getResultDataAsArrayFromRequest($period, $date, $params);
 	
 		$count = count($dataArray);
 	
@@ -550,7 +552,6 @@ class PiwikStatistics implements PiwikStatisticsInterface
 			$params['filter_sort_order'] = 'desc';
 			
 		}
-		
 		
 		$dataArray = $this->getResultDataAsArrayFromRequest($period, $date, $params);
 		
@@ -681,7 +682,7 @@ class PiwikStatistics implements PiwikStatisticsInterface
 	/**
 	 * @inheritDoc
 	 */
-	public function getNbRecordVisitsForLibrary($period, $date, $userLibCard)
+	public function getNbRecordVisitsForLibrary($period, $date, $userLibCard, $type = "all")
 	{
 		$params = array(
 				'method'  => 'Actions.get',
@@ -1126,5 +1127,46 @@ class PiwikStatistics implements PiwikStatisticsInterface
 		}
 	
 		return $referrerTypes;
+	}
+	
+	/**
+	 * @inheritDoc
+	 */
+	public function getFacetAccessCount($period, $date, $facetValue, $type = "all")
+	{
+	    $params = array(
+            'method'  => 'VisitsSummary.getVisits',
+            'format'  => 'json',
+            'segment' => 'pageUrl=@'.urlencode($facetValue),
+	    );
+	
+	    if ($type == "anonyme")
+	        $params['segment'] .= ';customVariablePageName1==UserLibcard;customVariablePageValue1==';
+	
+        if ($type == "authenticated")
+            $params['segment'] .= ';customVariablePageName1==UserLibcard;customVariablePageValue1!=';
+
+        $dataArray = $this->getResultDataAsArrayFromRequest($period, $date, $params);
+        $count = $dataArray['value'];
+
+        return $count;
+	}
+	
+	/**
+	 * @inheritDoc
+	 */
+	public function getFacetAccessCountForLibrary($period, $date, $facetValue, $userLibCard)
+	{
+	    $params = array(
+            'method'  => 'VisitsSummary.getVisits',
+            'format'  => 'json',
+            'segment' => 'pageUrl=@'.urlencode($facetValue)
+            .';customVariablePageName1==UserLibcard;customVariablePageValue1=='.$userLibCard,
+	    );
+	
+	    $dataArray = $this->getResultDataAsArrayFromRequest($period, $date, $params);
+	    $count = $dataArray['value'];
+	
+	    return $count;
 	}
 }

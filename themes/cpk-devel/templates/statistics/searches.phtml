@@ -3,9 +3,10 @@
     $this->headTitle($this->translate('Statistics'));
 
     // Set up breadcrumbs:
-    $this->layout()->breadcrumbs = '<li><a href="'.$this->url('myresearch-home').'">'.$this->transEsc('Your Account').'</a></li>' 
-    							  .'<li><a href="'.$this->url('statistics-dashboard').'">' . $this->transEsc('Statistics') . '</a></li>'
-    							  .'<li class="active">' . $this->transEsc('Searches') . '</li>';
+    $this->layout()->breadcrumbs = '<li><a title="' . $this->transEsc('Main page') . '" href="/Search">' . $this->transEsc('Main page') . '</a></li> '.
+                                    '<li><a href="'.$this->url('myresearch-home').'">'.$this->translate('Your Account').'</a></li>' 
+    							  .'<li><a href="'.$this->url('statistics-dashboard').'">' . $this->translate('Statistics') . '</a></li>'
+    							  .'<li class="active">' . $this->translate('Searches') . '</li>';
     
     echo $this->render('statistics/menu.phtml');
     
@@ -20,12 +21,12 @@
 				<div class="widget lazur-bg p-lg text-center">
 					<div class="m-b-md">
 						<i class="fa fa-check fa-4x"></i>
-						<h1 class="m-xs"><?= $this->nbSuccessedSearches ?></h1>
+						<h1 class="m-xs"><?= number_format($this->nbSuccessedSearches, 0, ',', ' ') ?></h1>
 						<h3 class="font-bold no-margins">
-							<?= $this->transEsc('Found') ?>
+							<?= $this->translate('Found') ?>
 		                </h3>
 		        		<small>
-		            		<?= $this->transEsc('Number of searches with found results') ?>
+		            		<?= $this->translate('Number of searches with found results') ?>
 		        		</small>
 		    		</div>
 				</div>
@@ -34,12 +35,12 @@
 				<div class="widget red-bg p-lg text-center">
 					<div class="m-b-md">
 						<i class="fa fa-close fa-4x"></i>
-						<h1 class="m-xs"><?= $this->nbFailedSearches ?></h1>
+						<h1 class="m-xs"><?= number_format($this->nbFailedSearches, 0, ',', ' ') ?></h1>
 						<h3 class="font-bold no-margins">
-							<?= $this->transEsc('Not found') ?>
+							<?= $this->translate('Not found') ?>
 		                </h3>
 		        		<small>
-		            		<?= $this->transEsc('Number of searches with no results') ?>
+		            		<?= $this->translate('Number of searches with no results') ?>
 		        		</small>
 		    		</div>
 				</div>
@@ -48,12 +49,12 @@
 				<div class="widget yellow-bg p-lg text-center">
 					<div class="m-b-md">
 						<i class="fa fa-sitemap fa-4x"></i>
-						<h1 class="m-xs"><?= $this->catalogAccessCount ?></h1>
+						<h1 class="m-xs"><?= number_format($this->catalogAccessCount, 0, ',', ' ') ?></h1>
 						<h3 class="font-bold no-margins">
-							<?= $this->transEsc('Catalog') ?>
+							<?= $this->translate('Catalog') ?>
 		                </h3>
 		        		<small>
-		            		<?= $this->transEsc('Number of catalog browsings') ?>
+		            		<?= $this->translate('Number of catalog browsings') ?>
 		        		</small>
 		    		</div>
 				</div>
@@ -67,8 +68,8 @@
 					<div class="panel-heading">
 						<h3 class="panel-title">
 							<i class="fa fa-search fa-fw"></i> 
-							<?= $this->transEsc('Top keywords'); ?> 
-							<span style='float: right;' class="badge"><?= $this->nbFoundKeywords ?></span>
+							<?= $this->translate('Top keywords'); ?> 
+							<span style='float: right;' class="badge"><?= number_format($this->nbFoundKeywords, 0, ',', ' ') ?></span>
 						</h3>
 					</div>
 					<div class="panel-body">
@@ -76,8 +77,8 @@
 							<table class="table table-hover table-striped">
 								<thead>
 									<tr>
-										<th><?= $this->transEsc('Search term') ?></th>
-		            					<th class='text-center'><?= $this->transEsc('Search count') ?></th>
+										<th><?= $this->translate('Search term') ?></th>
+		            					<th class='text-center'><?= $this->translate('Search count') ?></th>
 		            				</tr>
 		            			</thead>
 		            			<tbody>
@@ -90,7 +91,7 @@
 		            						$searchesHtml .= "\t\t\t\t\t\t\t\t\t".$value['keyword']."\n";
 		            						$searchesHtml .= "\t\t\t\t\t\t\t\t</td>\n";
 		            						$searchesHtml .= "\t\t\t\t\t\t\t\t<td class='text-center'>\n";
-		            						$searchesHtml .= "\t\t\t\t\t\t\t\t\t".$value['count']."\n";
+		            						$searchesHtml .= "\t\t\t\t\t\t\t\t\t".number_format($value['count'], 0, ',', ' ')."\n";
 		            						$searchesHtml .= "\t\t\t\t\t\t\t\t</td>\n";
 		            						$searchesHtml .= "\t\t\t\t\t\t\t<tr>\n";
 		            					}
@@ -101,7 +102,7 @@
 		            		</table>
 		            	</div>
 						<div class="text-right">
-							<a id='download-found-keywords'><?= $this->transEsc('Download full list in CSV'); ?> <i class="fa fa-cloud-download"></i></a>
+							<a id='download-found-keywords'><?= $this->translate('Download full list in CSV'); ?> <i class="fa fa-cloud-download"></i></a>
 						</div>
 					</div>
 				</div>
@@ -111,8 +112,8 @@
 					<div class="panel-heading">
 						<h3 class="panel-title">
 							<i class="fa fa-search fa-fw"></i> 
-							<?= $this->transEsc('Top not found keywords'); ?> 
-							<span style='float: right;' class="badge"><?= $this->nbNoResultKeywords ?></span>
+							<?= $this->translate('Top not found keywords'); ?> 
+							<span style='float: right;' class="badge"><?= number_format($this->nbNoResultKeywords, 0, ',', ' ') ?></span>
 						</h3>
 					</div>
 					<div class="panel-body">
@@ -120,8 +121,8 @@
 							<table class="table table-hover table-striped">
 								<thead>
 									<tr>
-										<th><?= $this->transEsc('Search term') ?></th>
-		            					<th class='text-center'><?= $this->transEsc('Search count') ?></th>
+										<th><?= $this->translate('Search term') ?></th>
+		            					<th class='text-center'><?= $this->translate('Search count') ?></th>
 		            				</tr>
 		            			</thead>
 		            			<tbody>
@@ -134,7 +135,7 @@
 		            						$failedSearchesHtml .= "\t\t\t\t\t\t\t\t\t".$value['keyword']."\n";
 		            						$failedSearchesHtml .= "\t\t\t\t\t\t\t\t</td>\n";
 		            						$failedSearchesHtml .= "\t\t\t\t\t\t\t\t<td class='text-center'>\n";
-		            						$failedSearchesHtml .= "\t\t\t\t\t\t\t\t\t".$value['count']."\n";
+		            						$failedSearchesHtml .= "\t\t\t\t\t\t\t\t\t".number_format($value['count'], 0, ',', ' ')."\n";
 		            						$failedSearchesHtml .= "\t\t\t\t\t\t\t\t</td>\n";
 		            						$failedSearchesHtml .= "\t\t\t\t\t\t\t<tr>\n";
 		            					}
@@ -145,7 +146,7 @@
 		            		</table>
 		            	</div>
 						<div class="text-right">
-							<a id='download-no-result-keywords'><?= $this->transEsc('Download full list in CSV'); ?> <i class="fa fa-cloud-download"></i></a>
+							<a id='download-no-result-keywords'><?= $this->translate('Download full list in CSV'); ?> <i class="fa fa-cloud-download"></i></a>
 						</div>
 					</div>
 				</div>
@@ -157,9 +158,9 @@
 			<div class="col-lg-6">
 				<div class="widget blue-bg p-lg text-center">
 					<div class="m-b-md">
-						<h1 class="m-xs"><?= $this->nbViewedItems ?></h1>
+						<h1 class="m-xs"><?= number_format($this->nbViewedItems, 0, ',', ' ') ?></h1>
 		        		<p>
-		            		<?= $this->transEsc('Number of viewed items') ?>
+		            		<?= $this->translate('Number of viewed items') ?>
 		        		</p>
 		    		</div>
 				</div>
@@ -167,9 +168,9 @@
 			<div class="col-lg-6">
 				<div class="widget blue-bg p-lg text-center">
 					<div class="m-b-md">
-						<h1 class="m-xs"><?= $this->nbItemViews ?></h1>
+						<h1 class="m-xs"><?= number_format($this->nbItemViews, 0, ',', ' ') ?></h1>
 		        		<p>
-		            		<?= $this->transEsc('Number of item views') ?>
+		            		<?= $this->translate('Number of item views') ?>
 		        		</p>
 		    		</div>
 				</div>
@@ -184,8 +185,7 @@
 </div>
 <!-- /.row -->
 
-<script src="vendor/jquery.min.js"></script>
-<script src="js/jquery-ui.min.js"></script>
+<? $this->headScript()->appendFile("jquery-ui.min.js"); ?>
 <script>
 	jQuery( document ).ready( function( $ ) {
 		

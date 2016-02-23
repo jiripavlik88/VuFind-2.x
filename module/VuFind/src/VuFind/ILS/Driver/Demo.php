@@ -213,7 +213,7 @@ class Demo extends AbstractBase
     protected function getRecordSource()
     {
         return isset($this->config['Records']['source'])
-            ? $this->config['Records']['source'] : 'VuFind';
+            ? $this->config['Records']['source'] : DEFAULT_SEARCH_BACKEND;
     }
 
     /**
@@ -228,6 +228,8 @@ class Demo extends AbstractBase
     protected function getRandomHolding($id, $number, array $patron = null)
     {
         $status = $this->getFakeStatus();
+        $location = $this->getFakeLoc();
+        $locationhref = ($location === 'Campus A') ? 'http://campus-a' : false;
         return [
             'id'           => $id,
             'source'       => $this->getRecordSource(),
@@ -236,7 +238,8 @@ class Demo extends AbstractBase
             'barcode'      => sprintf("%08d", rand() % 50000),
             'availability' => $status == 'Available',
             'status'       => $status,
-            'location'     => $this->getFakeLoc(),
+            'location'     => $location,
+            'locationhref' => $locationhref,
             'reserve'      => (rand() % 100 > 49) ? 'Y' : 'N',
             'callnumber'   => $this->getFakeCallNum(),
             'duedate'      => '',
@@ -524,9 +527,11 @@ class Demo extends AbstractBase
         foreach (array_keys($status) as $i) {
             $itemNum = $i + 1;
             $noteCount = rand(1, 3);
-            $status[$i]['notes'] = [];
+            $status[$i]['holdings_notes'] = [];
+            $status[$i]['item_notes'] = [];
             for ($j = 1; $j <= $noteCount; $j++) {
-                $status[$i]['notes'][] = "Item $itemNum note $j";
+                $status[$i]['holdings_notes'][] = "Item $itemNum holdings note $j";
+                $status[$i]['item_notes'][] = "Item $itemNum note $j";
             }
             $summCount = rand(1, 3);
             $status[$i]['summary'] = [];

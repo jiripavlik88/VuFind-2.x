@@ -475,6 +475,16 @@ class AbstractBase extends AbstractActionController
     }
 
     /**
+     * Get the record cache
+     *
+     * @return \VuFind\Record\Cache
+     */
+    public function getRecordCache()
+    {
+        return $this->getServiceLocator()->get('VuFind\RecordCache');
+    }
+    
+    /**
      * Get the record router.
      *
      * @return \VuFind\Record\Router
@@ -624,9 +634,8 @@ class AbstractBase extends AbstractActionController
      */
     protected function listsEnabled()
     {
-        $config = $this->getServiceLocator()->get('VuFind\Config')->get('config');
-        $tagSetting = isset($config->Social->lists) ? $config->Social->lists : true;
-        return $tagSetting && $tagSetting !== 'disabled';
+        $check = $this->getServiceLocator()->get('VuFind\AccountCapabilities');
+        return $check->getListSetting() !== 'disabled';
     }
 
     /**
@@ -636,9 +645,8 @@ class AbstractBase extends AbstractActionController
      */
     protected function tagsEnabled()
     {
-        $config = $this->getServiceLocator()->get('VuFind\Config')->get('config');
-        $tagSetting = isset($config->Social->tags) ? $config->Social->tags : true;
-        return $tagSetting && $tagSetting !== 'disabled';
+        $check = $this->getServiceLocator()->get('VuFind\AccountCapabilities');
+        return $check->getTagSetting() !== 'disabled';
     }
 
     /**

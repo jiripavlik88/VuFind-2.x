@@ -1,19 +1,72 @@
 <?
   // Set page title.
-  $this->headTitle($this->translate('E-version') . ': ' . $this->driver->getBreadcrumb());
+  $this->headTitle($this->driver->getBreadcrumb());
 ?>
+
+<div class='field856'>
+	<table class='table' id='e-version-table'>
+		<thead>
+		<tr>
+			<th class="col-md-2"><?=$this->translate('Destination');?></th>
+			<th class="col-md-2"><?=$this->translate('Accessibility');?></th>
+			<th class="col-md-5"><?=$this->translate('Link');?></th>
+			<th class="col-md-3"><?=$this->translate('Distributor');?></th>
+		</tr>
+		</thead>
+		<tbody>
+			<? if ($this->linksFrom856): ?>
+				<? foreach ($this->linksFrom856 as $linkRawString): 
+					$link = explode("|", $linkRawString);
+					$anchor = ! empty($link[3]) ? $link[3] : $this->transEsc('Link');
+					$destination = (substr($link[0], 0, 4) === 'kram') ? $this->translate('Digital library') : $this->translate('Web');
+					$title = ! empty($link[3]) ? $link[3] : $destination;
+					if ($link[1] === 'online') {
+						$statusClass = 'success';
+					} else if ($link[1] === 'unknown') {
+						$statusClass = 'warning';
+					} else {
+						$statusClass = 'danger';
+					}
+				?>
+					
+					<tr>
+						<td><?=$destination?></td>
+						<? if ($link[1] === 'protected') : ?>
+						 <td>
+						 	<a target='_blank' data-toggle="tooltip" data-placement="top" rel='nofollow' title="<?=$this->translate('What does it mean?')?>" href='https://cs.wikipedia.org/wiki/Voln%C3%A9_d%C3%ADlo'>
+						 		<span class="label label-<?=$statusClass?>"><?=$this->transEsc('link_access_status_'.$link[1])?></span>
+						 	</a>
+						 </td>
+						<? else : ?>
+						<td><span class="label label-<?=$statusClass?>"><?=$this->transEsc('link_access_status_'.$link[1])?></span></td>
+						<? endif; ?>
+						<td><a title='<?=$title?>' href='<?=$link[2]?>'><?=$anchor?></a></td>
+						<td><?=$this->transEsc('source_'.$link[0])?></td>
+					</tr>
+				<? endforeach; ?>
+			<? endif; ?>
+		</tbody>
+	</table>
+</div>
+
 <div id='sfx-jib-ajax-result'></div>
 
 <script src="/themes/cpk-devel/js/ajax-record-tabs.js"></script>
 <script>
+
 	jQuery( document ).ready( function( $ ) {
 
-		if ( typeof sfxJibResult == "undefined" )
-			var sfxJibResult = getSfxJibResult('http://sfx.jib.cz/sfxlcl3', '<?= $this->driver->getUniqueID() ?>', 'ANY'); /* @FIXME	When page with tabs is reloaded
-			 this script does not see this function declared in view.phtml so sfxJibResult is still undefined */
-
-		if ( sfxJibResult.data[0]['sfxResult'] !== '' ) {
-			$( "#sfx-jib-ajax-result" ).html( '<pre>' + JSON.stringify(sfxJibResult.data[0]['sfxResult']) + '</pre>' );
+		var recordUniqueID = '<?= $this->driver->getUniqueID() ?>';
+		databaseTranslation = '<?=$this->translate('Database')?>';
+		unknownTranslation = '<?=$this->translate('link_access_status_unknown')?>';
+		var eVersionLinksCount = <?=$this->eVersionLinksCount?>;
+		
+		if ( eVersionLinksCount === 0 ) {
+			$( '#eversion' ).parent().removeClass( 'active' ).addClass( 'disabled' );		
+			$( "#e-version-table" ).addClass( 'hidden' );		
+		}
+		if ( eVersionLinksCount > 0 ) {
+			get866( recordUniqueID, '<?= $this->driver->getParentRecordID() ?>', '<?= explode(".", $this->driver->getUniqueID())[0]?>', display866 );
 		}
 		
 	});

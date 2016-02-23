@@ -35,12 +35,29 @@ use MZKCommon\View\Helper\MZKCommon\Record as ParentRecord;
 class Record extends ParentRecord
 {
     /**
-     * Render WantIt HTML
+     * Display values of 7xx fields
+     * 
+     * @param   boolean $showDescription
      *
      * @return string
      */
-    public function getWantIt()
+    public function displayFieldsOf7xx($showDescription)
     {
-    	return $this->renderTemplate('want-it.phtml');
+        return $this->contextHelper->renderInContext(
+            'RecordDriver/SolrDefault/fieldsOf7xx.phtml', array('showDescription' => $showDescription)
+        );
+    }
+    
+    /**
+     * Display field 773
+     *
+     * @return string
+     */
+    public function displayField773()
+    {
+        return $this->contextHelper->renderInContext(
+            'RecordDriver/SolrDefault/field773.phtml',
+            []
+        );
     }
 }

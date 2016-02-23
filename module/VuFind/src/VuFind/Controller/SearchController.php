@@ -57,16 +57,19 @@ class SearchController extends AbstractSearch
 
         $prefferedFacets = array();
         $config = $this->getServiceLocator()->get('VuFind\Config')->get('facets');
-        foreach ($config->PreferredFacets as $field => $values) {
-            $vals = array();
-            $i = 0;
-            foreach ($values as $val) {
-                $i++;
-                $vals[$val] = $i;
+        
+        if (count($config->PreferredFacets)) {
+            foreach ($config->PreferredFacets as $field => $values) {
+                $vals = array();
+                $i = 0;
+                foreach ($values as $val) {
+                    $i++;
+                    $vals[$val] = $i;
+                }
+                $prefferedFacets[$field] = $vals;
             }
-            $prefferedFacets[$field] = $vals;
         }
-
+        
         $view->preferredFacets = $prefferedFacets;
 
         $specialFacets = $this->parseSpecialFacetsSetting(
@@ -103,7 +106,8 @@ class SearchController extends AbstractSearch
         $view->useRecaptcha = $this->recaptcha()->active('email');
         $view->url = $this->params()->fromPost(
             'url', $this->params()->fromQuery(
-                'url', $this->getRequest()->getServer()->get('HTTP_REFERER')
+                'url',
+                $this->getRequest()->getServer()->get('HTTP_REFERER')
             )
         );
 
@@ -428,17 +432,17 @@ class SearchController extends AbstractSearch
      */
     public function reservessearchAction()
     {
-        $results = $this->getResultsManager()->get('SolrReserves');
-        $params = $results->getParams();
-        $params->initFromRequest(
-            new \Zend\Stdlib\Parameters(
-                $this->getRequest()->getQuery()->toArray()
-                + $this->getRequest()->getPost()->toArray()
-            )
+        $request = new \Zend\Stdlib\Parameters(
+            $this->getRequest()->getQuery()->toArray()
+            + $this->getRequest()->getPost()->toArray()
         );
-        return $this->createViewModel(
-            ['params' => $params, 'results' => $results]
+        $view = $this->createViewModel();
+        $runner = $this->getServiceLocator()->get('VuFind\SearchRunner');
+        $view->results = $runner->run(
+            $request, 'SolrReserves', $this->getSearchSetupCallback()
         );
+        $view->params = $view->results->getParams();
+        return $view;
     }
 
     /**
@@ -538,6 +542,11 @@ class SearchController extends AbstractSearch
         // Check if we have facet results cached, and build them if we don't.
         $cache = $this->getServiceLocator()->get('VuFind\CacheManager')
             ->getCache('object');
+        $searchTabsHelper = $this->getServiceLocator()
+            ->get('VuFind\SearchTabsHelper');
+        $hiddenFilters = $searchTabsHelper->getHiddenFilters($this->searchClassId);
+        $hiddenFiltersHash = md5(json_encode($hiddenFilters));
+        $cacheName .= "-$hiddenFiltersHash";
         if (!($results = $cache->getItem($cacheName))) {
             // Use advanced facet settings to get summary facets on the front page;
             // we may want to make this more flexible later.  Also keep in mind that
@@ -546,6 +555,11 @@ class SearchController extends AbstractSearch
             $results = $this->getResultsManager()->get('Solr');
             $params = $results->getParams();
             $params->$initMethod();
+            foreach ($hiddenFilters as $key => $filters) {
+                foreach ($filters as $filter) {
+                    $params->addHiddenFilter("$key:$filter");
+                }
+            }
 
             // We only care about facet lists, so don't get any results (this helps
             // prevent problems with serialized File_MARC objects in the cache):

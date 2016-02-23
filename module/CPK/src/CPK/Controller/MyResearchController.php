@@ -27,7 +27,7 @@
  */
 namespace CPK\Controller;
 
-use MZKCommon\Controller\MyResearchController as MyResearchControllerBase, VuFind\Exception\Auth as AuthException, VuFind\Exception\ListPermission as ListPermissionException, VuFind\Exception\RecordMissing as RecordMissingException, Zend\Stdlib\Parameters;
+use MZKCommon\Controller\MyResearchController as MyResearchControllerBase, VuFind\Exception\Auth as AuthException, VuFind\Exception\ListPermission as ListPermissionException, VuFind\Exception\RecordMissing as RecordMissingException, Zend\Stdlib\Parameters, MZKCommon\Controller\ExceptionsTrait;
 
 /**
  * Controller for the user account area.
@@ -40,38 +40,32 @@ use MZKCommon\Controller\MyResearchController as MyResearchControllerBase, VuFin
  */
 class MyResearchController extends MyResearchControllerBase
 {
-
-    /**
-     * Login Action
-     *
-     * @return mixed
-     */
-    public function loginAction()
-    {
-        return parent::loginAction();
-    }
+    use ExceptionsTrait;
 
     public function logoutAction()
     {
         $logoutTarget = $this->getConfig()->Site->url;
-        return $this->redirect()->toUrl($this->getAuthManager()
-            ->logout($logoutTarget));
+        return $this->redirect()->toUrl(
+            $this->getAuthManager()
+                ->logout($logoutTarget));
     }
 
     public function profileAction()
     {
-        // Forwarding for Dummy connector to Home page ..
-        if ($this->isLoggedInWithDummyDriver()) {
-            return $this->forwardTo('MyResearch', 'Home');
-        }
-
         // Stop now if the user does not have valid catalog credentials available:
-        if (! is_array($patron = $this->catalogLogin())) {
-            $this->flashExceptions();
-            return $patron;
+        if (! $user = $this->getAuthManager()->isLoggedIn()) {
+            $this->flashExceptions($this->flashMessenger());
+            return $this->forceLogin();
         }
 
-        $user = $this->getAuthManager()->isLoggedIn();
+        // Forwarding for Dummy connector to Home page ..
+        if ($this->isLoggedInWithDummyDriver($user)) {
+
+            if ($this->listsEnabled()) {
+                return $this->forwardTo('Search', 'History');
+            }
+            return $this->forwardTo('MyResearch', 'Favorites');
+        }
 
         $identities = $user->getLibraryCards();
 
@@ -79,66 +73,47 @@ class MyResearchController extends MyResearchControllerBase
 
         $logos = $user->getIdentityProvidersLogos();
 
+        // Obtain user information from ILS:
+        $catalog = $this->getILS();
+
+        $config = $catalog->getDriverConfig();
+
+        if (isset($config['General']['async_profile']) &&
+             $config['General']['async_profile'])
+            $isSynchronous = false;
+        else
+            $isSynchronous = true;
+
+        $viewVars['isSynchronous'] = $isSynchronous;
+
         foreach ($identities as $identity) {
-
-            $profileFetched = $identity->cat_username === $patron['cat_username'];
-
-            if (! $profileFetched)
-                $patron = $this->parsePatronFromIdentity($identity);
-
-                // Here starts VuFind/MyResearch/profileAction
-                // Process home library parameter (if present):
-            $homeLibrary = $this->params()->fromPost('home_library', false);
-            if (! empty($homeLibrary)) {
-                $user->changeHomeLibrary($homeLibrary);
-                $this->getAuthManager()->updateSession($user);
-                $this->flashMessenger()
-                    ->setNamespace('info')
-                    ->addMessage('profile_update');
-            }
 
             // Begin building view object:
             $currentIdentityView = $this->createViewModel();
 
-            // Obtain user information from ILS:
-            $catalog = $this->getILS();
+            if (! $isSynchronous) {
 
-            if (! $profileFetched) {
+                // We only need to let AJAX handle itself with the right data
+                $profile = $user->libCardToPatronArray($identity);
+            } else {
+
+                $patron = $user->libCardToPatronArray($identity);
+
                 $profile = $catalog->getMyProfile($patron);
-            } else
-                $profile = $patron;
 
-            $profile['home_library'] = $user->home_library;
+                $profile['prolongRegistrationUrl'] = $catalog->getProlongRegistrationUrl(
+                    $profile);
+
+                $this->processBlocks($profile, $logos);
+            }
+
             $currentIdentityView->profile = $profile;
-
-            try {
-                $currentIdentityView->pickup = $catalog->getPickUpLocations($patron);
-                $currentIdentityView->defaultPickupLocation = $catalog->getDefaultPickUpLocation($patron);
-            } catch (\Exception $e) {
-                // Do nothing; if we're unable to load information about pickup
-                // locations, they are not supported and we should ignore them.
-            }
-            // Here ends VuFind/MyResearch/profileAction
-
-            // Here starts VuFind/MZKCommon/profileAction
-            if ($currentIdentityView) {
-                $catalog = $this->getILS();
-                $currentIdentityView->profileChange = $catalog->checkCapability('changeUserRequest');
-            }
-
-            // Here ends VuFind/MZKCommon/profileAction
-
-            if ($currentIdentityView) {
-                $this->processBlocks($currentIdentityView->__get('profile'), $logos);
-            }
-
             $libraryIdentities[$identity['eppn']] = $currentIdentityView;
         }
 
         $viewVars['libraryIdentities'] = $libraryIdentities;
-        $viewVars['logos'] = $logos;
         $view = $this->createViewModel($viewVars);
-        $this->flashExceptions();
+        $this->flashExceptions($this->flashMessenger());
         return $view;
     }
 
@@ -150,163 +125,231 @@ class MyResearchController extends MyResearchControllerBase
     public function holdsAction()
     {
         // Stop now if the user does not have valid catalog credentials available:
-        if (! is_array($patron = $this->catalogLogin())) {
-            return $patron;
+        if (! $user = $this->getAuthManager()->isLoggedIn()) {
+            $this->flashExceptions($this->flashMessenger());
+            return $this->forceLogin();
         }
 
-        $user = $this->getAuthManager()->isLoggedIn();
+        // Forwarding for Dummy connector to Home page ..
+        if ($this->isLoggedInWithDummyDriver($user)) {
+            return $this->forwardTo('MyResearch', 'Home');
+        }
+
+        // Connect to the ILS:
+        $catalog = $this->getILS();
+
+        $config = $catalog->getDriverConfig();
+
+        if (isset($config['General']['async_holds']) &&
+             $config['General']['async_holds'])
+            $isSynchronous = false;
+        else
+            $isSynchronous = true;
+
+        $viewVars = $patrons = [];
 
         $identities = $user->getLibraryCards();
 
-        $viewVars = $libraryIdentities = [];
-
+        // Process cancel jobs if any ..
         foreach ($identities as $identity) {
 
-            $patron = $this->parsePatronFromIdentity($identity);
-            // Start of VuFind/MyResearch/holdsAction
+            $patron = $user->libCardToPatronArray($identity);
 
-            // Connect to the ILS:
-            $catalog = $this->getILS();
+            // Start of VuFind/MyResearch/holdsAction
 
             // Process cancel requests if necessary:
             $cancelStatus = $catalog->checkFunction('cancelHolds', compact('patron'));
-            $currentIdentityView = $this->createViewModel();
-            $currentIdentityView->cancelResults = $cancelStatus ? $this->holds()->cancelHolds($catalog, $patron) : [];
+            $patron['cancelResults'] = $cancelStatus ? $this->holds()->cancelHolds(
+                $catalog, $patron, $isSynchronous) : [];
             // If we need to confirm
-            if (! is_array($currentIdentityView->cancelResults)) {
-                return $currentIdentityView->cancelResults;
+            if (! is_array($patron['cancelResults'])) {
+                return $patron['cancelResults'];
             }
 
-            // By default, assume we will not need to display a cancel form:
-            $currentIdentityView->cancelForm = false;
-
-            // Get held item details:
-            $result = $catalog->getMyHolds($patron);
-            $recordList = [];
-            $this->holds()->resetValidation();
-            foreach ($result as $current) {
-                // Add cancel details if appropriate:
-                $current = $this->holds()->addCancelDetails($catalog, $current, $cancelStatus);
-                if ($cancelStatus && $cancelStatus['function'] != "getCancelHoldLink" && isset($current['cancel_details'])) {
-                    // Enable cancel form if necessary:
-                    $currentIdentityView->cancelForm = true;
-                }
-
-                // Build record driver:
-                $recordList[] = $this->getDriverForILSRecord($current);
-            }
-
-            // Get List of PickUp Libraries based on patron's home library
-            try {
-                $currentIdentityView->pickup = $catalog->getPickUpLocations($patron);
-            } catch (\Exception $e) {
-                // Do nothing; if we're unable to load information about pickup
-                // locations, they are not supported and we should ignore them.
-            }
-            $currentIdentityView->recordList = $recordList;
-            // End of VuFind/MyResearch/holdsAction
-
-            // Start of MZKCommon/MyResearch/holdsAction
-            $currentIdentityView = $this->addViews($currentIdentityView);
-            // End of MZKCommon/MyResearch/holdsAction
-
-            $libraryIdentities[$identity['eppn']] = $currentIdentityView;
+            $eppn = $patron['eppn'];
+            $patrons[$eppn] = $patron;
         }
 
-        $viewVars['libraryIdentities'] = $libraryIdentities;
-        $viewVars['logos'] = $user->getIdentityProvidersLogos();
+        $this->holds()->resetValidation();
+
+        // Now process actual holds rendering
+        foreach ($patrons as $eppn => $patron) {
+
+            $currentIdentityView = $this->createViewModel();
+
+            // Append cancelResults from previous iteration ..
+            $currentIdentityView->cancelResults = $patron['cancelResults'];
+
+            if ($isSynchronous) {
+                // Get held item details:
+                $result = $catalog->getMyHolds($patron);
+                $recordList = [];
+
+                // Let's assume there is not avaiable any cancelling
+                $currentIdentityView->cancelForm = false;
+
+                foreach ($result as $current) {
+                    // Add cancel details if appropriate:
+                    $current = $this->holds()->addCancelDetails($catalog, $current,
+                        $cancelStatus);
+                    if ($cancelStatus &&
+                         $cancelStatus['function'] != "getCancelHoldLink" &&
+                         isset($current['cancel_details'])) {
+                        // Enable cancel form if necessary:
+                        $currentIdentityView->cancelForm = true;
+                    }
+
+                    // Build record driver:
+                    $recordList[] = $this->getDriverForILSRecord($current);
+                }
+
+                // Get List of PickUp Libraries based on patron's home library
+                try {
+                    $currentIdentityView->pickup = $catalog->getPickUpLocations(
+                        $patron);
+                } catch (\Exception $e) {
+                    // Do nothing; if we're unable to load information about pickup
+                    // locations, they are not supported and we should ignore them.
+                }
+                $currentIdentityView->recordList = $recordList;
+            } else // This means we have async deal ..
+                $currentIdentityView->cat_username = $patron['cat_username'];
+
+            // Unknown purpose .. copied from parent MZKCommon ..
+            $currentIdentityView = $this->addViews($currentIdentityView);
+
+            $viewVars['libraryIdentities'][$eppn] = $currentIdentityView;
+        }
+
+        $viewVars['isSynchronous'] = $isSynchronous;
+
         $view = $this->createViewModel($viewVars);
-        $this->flashExceptions();
+        $this->flashExceptions($this->flashMessenger());
         return $view;
     }
 
     public function checkedoutAction()
     {
         // Stop now if the user does not have valid catalog credentials available:
-        if (! is_array($patron = $this->catalogLogin())) {
-            return $patron;
+        if (! $user = $this->getAuthManager()->isLoggedIn()) {
+            $this->flashExceptions($this->flashMessenger());
+            return $this->forceLogin();
         }
 
-        $user = $this->getAuthManager()->isLoggedIn();
+        // Forwarding for Dummy connector to Home page ..
+        if ($this->isLoggedInWithDummyDriver($user)) {
+            return $this->forwardTo('LibraryCards', 'Home');
+        }
 
         $identities = $user->getLibraryCards();
 
         $viewVars = $libraryIdentities = [];
 
+        // Connect to the ILS:
+        $catalog = $this->getILS();
+
+        $config = $catalog->getDriverConfig();
+
+        if (isset($config['General']['async_checkedout']) &&
+             $config['General']['async_checkedout'])
+            $isSynchronous = false;
+        else
+            $isSynchronous = true;
+
+        $viewVars['isSynchronous'] = $isSynchronous;
+
         foreach ($identities as $identity) {
 
-            $patron = $this->parsePatronFromIdentity($identity);
+            $patron = $user->libCardToPatronArray($identity);
 
             // Start of VuFind/MyResearch/checkedoutAction
 
-            // Connect to the ILS:
-            $catalog = $this->getILS();
-
             // Get the current renewal status and process renewal form, if necessary:
             $renewStatus = $catalog->checkFunction('Renewals', compact('patron'));
-            $renewResult = $renewStatus ? $this->renewals()->processRenewals($this->getRequest()
-                ->getPost(), $catalog, $patron) : [];
+            $renewResult = $renewStatus ? $this->renewals()->processRenewals(
+                $this->getRequest()
+                    ->getPost(), $catalog, $patron) : [];
+
+            if (is_array($renewResult) && count($renewResult)) {
+                foreach ($renewResult as $id => $detail) {
+                    if ($detail['success'] === false && isset($detail['sysMessage'])) {
+                        $this->flashMessenger()
+                            ->setNamespace('error')
+                            ->addMessage($detail['sysMessage']);
+                    }
+                }
+            }
 
             // By default, assume we will not need to display a renewal form:
             $renewForm = false;
 
-            // Get checked out item details:
-            $result = $catalog->getMyTransactions($patron);
+            if ($isSynchronous) {
 
-            // Get page size:
-            $config = $this->getConfig();
-            $limit = isset($config->Catalog->checked_out_page_size) ? $config->Catalog->checked_out_page_size : 50;
+                // Get checked out item details:
+                $result = $catalog->getMyTransactions($patron);
 
-            // Build paginator if needed:
-            if ($limit > 0 && $limit < count($result)) {
-                $adapter = new \Zend\Paginator\Adapter\ArrayAdapter($result);
-                $paginator = new \Zend\Paginator\Paginator($adapter);
-                $paginator->setItemCountPerPage($limit);
-                $paginator->setCurrentPageNumber($this->params()
-                    ->fromQuery('page', 1));
-                $pageStart = $paginator->getAbsoluteItemNumber(1) - 1;
-                $pageEnd = $paginator->getAbsoluteItemNumber($limit) - 1;
-            } else {
-                $paginator = false;
-                $pageStart = 0;
-                $pageEnd = count($result);
-            }
+                // Get page size:
+                $config = $this->getConfig();
+                $limit = isset($config->Catalog->checked_out_page_size) ? $config->Catalog->checked_out_page_size : 50;
 
-            $transactions = $hiddenTransactions = [];
-            foreach ($result as $i => $current) {
-                // Add renewal details if appropriate:
-                $current = $this->renewals()->addRenewDetails($catalog, $current, $renewStatus);
-                if ($renewStatus && ! isset($current['renew_link']) && $current['renewable']) {
-                    // Enable renewal form if necessary:
-                    $renewForm = true;
-                }
-
-                // Build record driver (only for the current visible page):
-                if ($i >= $pageStart && $i <= $pageEnd) {
-                    $transactions[] = $this->getDriverForILSRecord($current);
+                // Build paginator if needed:
+                if ($limit > 0 && $limit < count($result)) {
+                    $adapter = new \Zend\Paginator\Adapter\ArrayAdapter($result);
+                    $paginator = new \Zend\Paginator\Paginator($adapter);
+                    $paginator->setItemCountPerPage($limit);
+                    $paginator->setCurrentPageNumber(
+                        $this->params()
+                            ->fromQuery('page', 1));
+                    $pageStart = $paginator->getAbsoluteItemNumber(1) - 1;
+                    $pageEnd = $paginator->getAbsoluteItemNumber($limit) - 1;
                 } else {
-                    $hiddenTransactions[] = $current;
+                    $paginator = false;
+                    $pageStart = 0;
+                    $pageEnd = count($result);
                 }
-            }
 
-            $currentIdentityView = compact('transactions', 'renewForm', 'renewResult', 'paginator', 'hiddenTransactions');
-            // End of VuFind/MyResearch/checkedoutAction
+                $transactions = $hiddenTransactions = [];
+                foreach ($result as $i => $current) {
+                    // Add renewal details if appropriate:
+                    $current = $this->renewals()->addRenewDetails($catalog, $current,
+                        $renewStatus);
+                    if ($renewStatus && ! isset($current['renew_link']) &&
+                         $current['renewable']) {
+                        // Enable renewal form if necessary:
+                        $renewForm = true;
+                    }
 
-            // Start of MZKCommon/MyResearch/checkedoutAction
-            $showOverdueMessage = false;
-            foreach ($currentIdentityView->transactions as $resource) {
-                $ilsDetails = $resource->getExtraDetail('ils_details');
-                if (isset($ilsDetails['dueStatus']) && $ilsDetails['dueStatus'] == "overdue") {
-                    $showOverdueMessage = true;
-                    break;
+                    // Build record driver (only for the current visible page):
+                    if ($i >= $pageStart && $i <= $pageEnd) {
+                        $transactions[] = $this->getDriverForILSRecord($current);
+                    } else {
+                        $hiddenTransactions[] = $current;
+                    }
                 }
-            }
-            if ($showOverdueMessage) {
-                $this->flashMessenger()
-                    ->setNamespace('error')
-                    ->addMessage('overdue_error_message');
-            }
-            $currentIdentityView->history = false;
+
+                $currentIdentityView = compact('transactions', 'renewForm',
+                    'renewResult', 'paginator', 'hiddenTransactions');
+                // End of VuFind/MyResearch/checkedoutAction
+
+                // Start of MZKCommon/MyResearch/checkedoutAction
+                $showOverdueMessage = false;
+                foreach ($currentIdentityView['transactions'] as $resource) {
+                    $ilsDetails = $resource->getExtraDetail('ils_details');
+                    if (isset($ilsDetails['dueStatus']) &&
+                         $ilsDetails['dueStatus'] == "overdue") {
+                        $showOverdueMessage = true;
+                        break;
+                    }
+                }
+                if ($showOverdueMessage) {
+                    $this->flashMessenger()
+                        ->setNamespace('error')
+                        ->addMessage('overdue_error_message');
+                }
+                $currentIdentityView['history'] = false;
+            } else
+                $currentIdentityView['cat_username'] = $patron['cat_username'];
+
             $currentIdentityView = $this->addViews($currentIdentityView);
             // End of MZKCommon/MyResearch/checkedoutAction
 
@@ -314,20 +357,68 @@ class MyResearchController extends MyResearchControllerBase
         }
 
         $viewVars['libraryIdentities'] = $libraryIdentities;
-        $viewVars['logos'] = $user->getIdentityProvidersLogos();
         $view = $this->createViewModel($viewVars);
 
-        $this->flashExceptions();
+        $this->flashExceptions($this->flashMessenger());
         return $view;
+    }
+
+    /**
+     * Send user's saved favorites from a particular list to the view
+     *
+     * @return mixed
+     */
+    public function mylistAction()
+    {
+            // Fail if lists are disabled:
+        if (! $this->listsEnabled()) {
+            throw new \Exception('Lists disabled');
+        }
+        
+        $config = $this->getConfig();
+        
+        // Are "offline favorites" enabled ?
+        $offlineFavoritesEnabled = false;
+        
+        if ($config->Site['offlineFavoritesEnabled'] !== null) {
+            $offlineFavoritesEnabled = (bool) $config->Site['offlineFavoritesEnabled'];
+        }
+        
+        // And is user not logged in ?
+        $userNotLoggedIn = $this->getUser() === false;
+        
+        if ($offlineFavoritesEnabled && $userNotLoggedIn) {
+            // Well then, render the favorites for not logged in user & let JS handle it ..
+            
+            return $this->createViewModel([
+                'loggedIn' => false
+            ]);
+        } else {
+            // Nope, let's behave the old-style :)
+            return parent::mylistAction();
+        }
     }
 
     public function userConnectAction()
     {
         // This eid serves only to warn user he wants to connect the same instituion account
-        $entityIdInitiatedWith = $_GET['eid'];
+        if (isset($_GET['eid']))
+            $entityIdInitiatedWith = $_GET['eid'];
+        else
+            $entityIdInitiatedWith = null;
+
+        $patron = $this->catalogLogin();
+
+        // We can't really determine if is user logged in if entityIdInitiatedWith is provided
+        // We have to leave this on ShibbolethIdentityManager ..
+        $haveToLogin = ! is_array($patron) &&
+             ! $this->isLoggedInWithDummyDriver($patron) &&
+             empty($entityIdInitiatedWith);
 
         // Stop now if the user does not have valid catalog credentials available:
-        if (empty($entityIdInitiatedWith) && ! $this->isLoggedInWithDummyDriver() && ! is_array($patron = $this->catalogLogin())) {
+        if ($haveToLogin) {
+            $this->flashExceptions($this->flashMessenger());
+            $this->clearFollowupUrl();
             return $patron;
         }
 
@@ -352,17 +443,107 @@ class MyResearchController extends MyResearchControllerBase
                 $this->clearFollowupUrl();
 
             try {
-                $user = $this->getAuthManager()->connectIdentity();
+                $user = $this->getAuthManager()->consolidateIdentity();
             } catch (AuthException $e) {
                 $this->processAuthenticationException($e);
             }
 
             if ($user->consolidationSucceeded)
-                $this->processSuccessMessage("Identities were successfully connected");
+                $this->processSuccessMessage(
+                    "Identities were successfully connected");
 
                 // Show user all his connected identities
             return $this->redirect()->toRoute('librarycards-home');
         }
+    }
+
+    /**
+     * Send list of fines to view
+     *
+     * @return mixed
+     */
+    public function finesAction()
+    {
+        // Stop now if the user does not have valid catalog credentials available:
+        if (! $user = $this->getAuthManager()->isLoggedIn()) {
+            $this->flashExceptions($this->flashMessenger());
+            return $this->forceLogin();
+        }
+
+        // Forwarding for Dummy connector to Home page ..
+        if ($this->isLoggedInWithDummyDriver($user)) {
+            return $this->forwardTo('MyResearch', 'Home');
+        }
+
+        $identities = $user->getLibraryCards();
+
+        $viewVars = $libraryIdentities = [];
+
+        $allFines = [];
+
+        // Connect to the ILS:
+        $catalog = $this->getILS();
+
+        $config = $catalog->getDriverConfig();
+
+        if (isset($config['General']['async_fines']) &&
+             $config['General']['async_fines'])
+            $isSynchronous = false;
+        else
+            $isSynchronous = true;
+
+        $viewVars['isSynchronous'] = $isSynchronous;
+
+        foreach ($identities as $identity) {
+
+            $patron = $user->libCardToPatronArray($identity);
+
+            // Begin building view object:
+            $currentIdentityView = $this->createViewModel();
+
+            $fines = [];
+
+            if (! $isSynchronous) {
+                $fines['cat_username'] = $patron['cat_username'];
+            } else {
+                // Get fine details:
+                $result = $catalog->getMyFines($patron);
+
+                foreach ($result as $row) {
+                    // Attempt to look up and inject title:
+                    try {
+                        if (! isset($row['id']) || empty($row['id'])) {
+                            throw new \Exception();
+                        }
+                        $source = isset($row['source']) ? $row['source'] : 'VuFind';
+                        $row['driver'] = $this->getServiceLocator()
+                            ->get('VuFind\RecordLoader')
+                            ->load($row['id'], $source);
+                        $row['title'] = $row['driver']->getShortTitle();
+                    } catch (\Exception $e) {
+                        if (! isset($row['title'])) {
+                            $row['title'] = null;
+                        }
+                    }
+                    $fines[] = $row;
+                }
+            }
+            $allFines[$identity['eppn']] = $fines;
+        }
+        $viewVars['fines'] = $allFines;
+        $totalFine = 0;
+        if (! empty($result)) {
+            foreach ($result as $fine) {
+                $totalFine += ($fine['amount']);
+            }
+        }
+        if ($totalFine < 0) {
+            $viewVars['paymentUrl'] = $catalog->getPaymentURL($patron,
+                - 1 * $totalFine);
+        }
+        $view = $this->createViewModel($viewVars);
+        $this->flashExceptions($this->flashMessenger());
+        return $view;
     }
 
     /**
@@ -375,24 +556,32 @@ class MyResearchController extends MyResearchControllerBase
         return $this->redirect()->toRoute('myresearch-home');
     }
 
-    protected function isLoggedInWithDummyDriver()
+    protected function isLoggedInWithDummyDriver($user)
     {
-        $user = $this->getAuthManager()->isLoggedIn();
-        return $user ? $user['home_library'] == "Dummy" : false;
+        if ($user instanceof \Zend\View\Model\ViewModel)
+            return false;
+        return isset($user['home_library']) ? $user['home_library'] == "Dummy" : false;
     }
 
     protected function processBlocks($profile, $logos)
     {
-        if ($logos instanceof \Zend\Config\Config) {
-            $logos = $logos->toArray();
-        }
+        if (isset($profile['blocks'])) {
+            if ($logos instanceof \Zend\Config\Config) {
+                $logos = $logos->toArray();
+            }
 
-        foreach ($profile['blocks'] as $institution => $block) {
-            $logo = $logos[$institution];
+            foreach ($profile['blocks'] as $institution => $block) {
+                if (isset($logos[$institution]))
+                    $logo = $logos[$institution];
+                else
+                    $logo = $institution;
 
-            $message[$logo] = $block;
+                $message[$logo] = $block;
 
-            $this->flashMessenger()->setNamespace('error')->addMessage($message);
+                $this->flashMessenger()
+                    ->setNamespace('error')
+                    ->addMessage($message);
+            }
         }
     }
 
@@ -407,14 +596,71 @@ class MyResearchController extends MyResearchControllerBase
             ->setNamespace('success')
             ->addMessage($msg);
     }
-
-    protected function parsePatronFromIdentity($identity)
+    
+    /**
+     * Settings view
+     *
+     * @return Zend\View\Model\ViewModel
+     */
+    public function settingsAction()
     {
-        $patron['cat_username'] = $identity->cat_username;
-        $patron['mail'] = $identity->card_name;
-        $patron['eppn'] = $identity->eppn;
-
-        $patron['id'] = $patron['cat_username'];
-        return $patron;
+        // Stop now if the user does not have valid catalog credentials available:
+        if (! $user = $this->getAuthManager()->isLoggedIn()) {
+            $this->flashExceptions($this->flashMessenger());
+            return $this->forceLogin();
+        }
+        
+        /* Citation style fieldset */
+        $citationStyleTable = $this->getTable('citationstyle');
+        $availableCitationStyles = $citationStyleTable->getAllStyles();
+        
+        $defaultCitationStyleValue = $this->getConfig()->Record->default_citation_style;
+        
+        foreach ($availableCitationStyles as $style) {
+            if ($style['value'] === $defaultCitationStyleValue) {
+                $defaultCitationStyle = $style['id'];
+                break;
+            }
+        }
+        
+        $userSettingsTable = $this->getTable("usersettings");
+        $preferedCitationStyle = $userSettingsTable->getUserCitationStyle($user);
+        
+        $selectedCitationStyle = (! empty($preferedCitationStyle)) 
+            ? $preferedCitationStyle 
+            : $defaultCitationStyle;
+        
+        $viewVars['selectedCitationStyle']   = $selectedCitationStyle;
+        $viewVars['availableCitationStyles'] = $availableCitationStyles;
+        
+        /* Records per page fieldset */
+        $searchesConfig = $this->getConfig('searches');
+        $recordsPerPageOptions = explode(",", $searchesConfig->General->limit_options);
+        $recordsPerPageDefaultValue = $searchesConfig->General->default_limit;
+        $preferredRecordsPerPageValue = $userSettingsTable->getRecordsPerPage($user);
+        
+        $selectedRecordsPerPageOption = (! empty($preferredRecordsPerPageValue))
+        ? $preferredRecordsPerPageValue
+        : $recordsPerPageDefaultValue;
+        
+        $viewVars['recordsPerPageOptions'] = $recordsPerPageOptions;
+        $viewVars['selectedRecordsPerPageOption'] = $selectedRecordsPerPageOption;
+        
+        /* Sorting fieldset */
+        $sortingOptions = $searchesConfig->Sorting->toArray();
+        $defaultSorting = $searchesConfig->General->default_sort;
+        $preferredSorting = $userSettingsTable->getSorting($user);
+        
+        $selectedSorting = (! empty($preferredSorting))
+        ? $preferredSorting
+        : $defaultSorting;
+        
+        $viewVars['sortingOptions'] = $sortingOptions;
+        $viewVars['selectedSorting'] = $selectedSorting;
+        
+        //
+        $view = $this->createViewModel($viewVars);
+        $this->flashExceptions($this->flashMessenger());
+        return $view;
     }
 }

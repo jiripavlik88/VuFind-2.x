@@ -38,6 +38,9 @@ namespace CPK\View\Helper\CPK;
  */
 class Flashmessages extends \VuFind\View\Helper\Bootstrap3\Flashmessages
 {
+
+    private $idpLogos = null;
+
     /**
      * Generate flash message <div>'s with appropriate classes based on message type.
      *
@@ -54,13 +57,12 @@ class Flashmessages extends \VuFind\View\Helper\Bootstrap3\Flashmessages
             );
             foreach (array_unique($messages, SORT_REGULAR) as $msg) {
 
-                if(is_array($msg)) {
-                    $logoInstitution = key($msg);
-                    $msg = $msg[$logoInstitution];
+                if(is_array($msg) && isset($msg['source'])) {
+                    $logoInstitution = $this->getLogo($msg['source']);
                 } else
                     $logoInstitution = null;
 
-                $html .= '<div class="' . $this->getClassForNamespace($ns) . '">';
+                $html .= '<div class="row"><div class="' . $this->getClassForNamespace($ns) . '">';
 
                 if (! empty($logoInstitution)) {
                     $imgSource = "<img class=\"logo-error\" src=\"$logoInstitution\" height=\"32\">";
@@ -89,11 +91,35 @@ class Flashmessages extends \VuFind\View\Helper\Bootstrap3\Flashmessages
             $transEsc = $this->getView()->plugin('transEsc');
                 $html .= $transEsc($msg);
             }
-            $html .= '</div>';
+            $html .= '</div></div>';
             }
             $this->fm->clearMessages();
             $this->fm->clearCurrentMessages();
             }
             return $html;
+        }
+
+        public function __construct($fm, $config) {
+
+            parent::__construct($fm);
+
+            $this->config = $config;
+
+            if ($this->config['IdPLogos'] !== null) {
+                $this->idpLogos = $this->config['IdPLogos']->toArray();
+            } else {
+                $this->idpLogos = [];
+            }
+        }
+
+        public function getLogo($source)
+        {
+            if (isset($this->idpLogos[$source]) 
+                && $this->idpLogos[$source] !== null
+            ) {
+                return $this->idpLogos[$source];
+            }
+
+            return '';
         }
 }

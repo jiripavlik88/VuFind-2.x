@@ -1,18 +1,47 @@
+/*
+  This file contains styling of search-results
+*/
+
+.authorbox{
+  margin-top: -20px;
+}
+
+//search controls margin bottom
+.search-controls {
+  margin-bottom: 10px;
+}
+
+//search controls on one line
+.search-controls .text-right {
+  margin-top:-6px;
+}
+
 //search controls on search results page on 1 line
 .search-controls .form-inline {
   display: inline-block;
 }
 
 .result {
-  background-color: #fff;
-  padding-top: 19px;
   padding-left: 0px;
   padding-right: 0px;
   padding-bottom: 0px;
-  margin-bottom: 20px;
-  border-radius: 0px;
-  border: 0;
+}
 
+.records-in-libraries-divider{
+	margin-top: 10px;
+	margin-bottom: 10px;
+}
+
+.list-group, .tt-dropdown-menu {
+  // No need to set list-style: none; since .list-group-item is block level
+  margin-bottom: 10px;
+  background-color: #fff;
+  padding-left: 0; // reset padding because ul and ol
+}
+
+//library names in facets on multiple lines, do not crop on one line
+.jstree-facet li span.main {
+  white-space: normal;
 }
 
 //formats
@@ -22,6 +51,9 @@
 .format-text{
   font-size:12px;
 }
+.iconlabel{
+  display: inline-block;
+}
 
 
 //list of search results
@@ -29,23 +61,9 @@
   margin-bottom:10px;
 }
 
-.result a.title {
+.result a.title, a.title {
   font-weight: normal;
   font-size: 16px;
-}
-
-.row .want-it {
-  border-top: 1px solid #EEEEEE;
-  & > div{
-    padding-top: 2px;
-    padding-bottom: 10px;
-    height: 52px;
-  }
-  & > .col-md-2{
-    border-left: 1px solid #EEEEEE;
-  }
-  & > .buy{
-  }
 }
 
 .btn-group > .btn + .dropdown-toggle{
@@ -59,67 +77,134 @@
   }
 }
 
-.fa-heart, .fa-heart-o {
+.dedupInformation {
+  margin-top: 10px;
+}
+
+.show-next-institutions {
+  cursor: pointer;
+  font-weight: bold;
   color: @brand-primary;
 }
 
-.fa {
-  &.books:before {
-    //book
-    content: "\f02d";
-  }
-  &.electronicsource:before {
-    //globe
-    content: "\f0ac"
-  }
-  &.other:before, &.otherunspecified:before, {
-    //question
-    content: "\f128"
-  }
-  &.otherobject:before {
-    //cube
-    content: "\f1b2"
-  }
-  &.periodicals:before {
-    //newspaper-o
-    content: "\f1ea"
-  }
-  &.visualdocuments:before {
-    //picture-o
-    content: "\f03e"
-  }
-  &.articles:before, &.manuscripts:before {
-    //file-text-o
-    content: "\f0f6"
-  }
-  &.audio:before, &.audiocd:before, &.audioother:before, &.musicalscores:before, &.audiocassette:before, &.audiolp:before, &.audiodvd:before {
-    //fa-file-audio-o
-    content: "\f1c7"
-  }
-  &.maps:before {
-    //map
-    content: "\f279"
-  }
-  &.video:before, &.videodvd:before, &.videoother:before, &.videocd:before  {
-    //file-video-o
-    content: "\f1c8"
-  }
-  &.largeprints:before {
-    //search-plus
-    content: "\f00e"
-  }
-  &.braill:before {
-    //eye-slash
-    content: "\f070"
-  }
-  &.microforms:before {
-    //search-minus
-    content: "\f010"
-  }
+.facet {
+    border-bottom: 1px solid #ccc;
+    padding-bottom: 10px;
+}
+.jstree-ocl::before {
+    color: #e5004b !important;
+    // content: "»" !important;
+}
 
+.sidebar .list-group:not(.filters) .title::after {
+    content: none;
+    color: #e5004b !important;
+}
 
+.sidebar .list-group:not(.filters) .title::before {
+    content: "⇱ ";
+    color: #e5004b !important;
+}
 
+.sidebar .list-group:not(.filters) .title.collapsed::after {
+    color: #e5004b !important;
+    content: none;
+}
 
+.sidebar .list-group:not(.filters) .title.collapsed::before {
+    content: "⇲ ";
+}
 
+.list-group, .tt-dropdown-menu {
+    background-color: inherit !important;
+}
 
+.list-group-item {
+    background-color: inherit !important;
+}
+
+.list-group-item.title {
+    font-size: 120%;
+    font-weight: normal;
+}
+
+.root-title a {
+    color: #e5004b !important;
+    font-size: 140% !important;
+    font-weight: 700 !important;
+    line-height: 17px !important;
+}
+
+.summDate {
+    font-size: 110%;
+    line-height: 24px !important;
+}
+
+.snippetQuote {
+    padding: 2px 5px;
+    display: block;
+}
+
+.white-box {
+    border: 1px solid #ddd;
+}
+
+.highlight, mark {
+    background-color: inherit !important;
+    font-weight: bold;
+}
+
+.author-info {
+    font-weight: bold; font-size: 120%;
+    color: #444;
+    font-size: 120%;
+}
+
+.pagination {
+    font-size: 120%;
+}
+
+.pagination > li > a, .pagination > li > span {
+    color: #e5004b;
+    border: none;
+    background: inherit;
+}
+.pagination > li.disabled > span {
+    background: inherit;
+}
+.pagination > li > a:hover {
+    color: @link-hover-color;
+}
+.pagination > li.disabled > span:hover {
+    background: inherit;
+    cursor: default;
+}
+
+.result-list-toolbar {
+    text-align: right;
+    padding-right: 15px;
+}
+
+.result-list-toolbar a {
+    color: #444;
+}
+
+.search-result-container {
+    border-right: 1px solid #ddd;
+}
+
+.records-in-libraries-title {
+    font-weight: bold;
+}
+
+.scrollable-menu {
+    height: auto;
+    max-height: 200px;
+    width: 300px;
+    overflow-x: hidden;
+    padding: 6px;
+}
+
+.coverThumbnail {
+    margin-bottom: 8px;
 }

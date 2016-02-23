@@ -27,7 +27,16 @@
  */
 namespace CPK\Auth;
 
-use VuFind\Auth\Manager as BaseManager, VuFind\Db\Table\User as UserTable, VuFind\Auth\PluginManager as PluginManager, Zend\Config\Config as Config, Zend\Session\SessionManager as SessionManager, VuFind\Cookie\CookieManager, Zend\ServiceManager\ServiceLocatorAwareInterface, Zend\ServiceManager\ServiceLocatorInterface, VuFind\Exception\Auth as AuthException;
+use VuFind\Auth\Manager as BaseManager,
+    VuFind\Db\Table\User as UserTable,
+    CPK\Db\Table\UserSettings,
+    VuFind\Auth\PluginManager as PluginManager,
+    Zend\Config\Config as Config,
+    Zend\Session\SessionManager as SessionManager,
+    VuFind\Cookie\CookieManager,
+    Zend\ServiceManager\ServiceLocatorAwareInterface,
+    Zend\ServiceManager\ServiceLocatorInterface,
+    VuFind\Exception\Auth as AuthException;
 
 /**
  * Wrapper class for handling logged-in user in session.
@@ -40,16 +49,25 @@ use VuFind\Auth\Manager as BaseManager, VuFind\Db\Table\User as UserTable, VuFin
  */
 class Manager extends BaseManager
 {
-
+    /**
+     * UserSettings Table
+     * @var CPK\Db\Table\UserSettings
+     */
+    protected $userSettingsTable;
+    
     /**
      * Constructor
      *
      * @param \Zend\Config\Config $config
      *            VuFind configuration
      */
-    public function __construct(Config $config, UserTable $userTable, SessionManager $sessionManager, PluginManager $pm, CookieManager $cookieManager)
+    public function __construct(Config $config, UserTable $userTable,
+        SessionManager $sessionManager, PluginManager $pm,
+        CookieManager $cookieManager, UserSettings $userSettingsTable)
     {
-        parent::__construct($config, $userTable, $sessionManager, $pm, $cookieManager);
+        parent::__construct($config, $userTable, $sessionManager, $pm,
+            $cookieManager);
+        $this->userSettingsTable = $userSettingsTable;
     }
 
     /**
@@ -65,7 +83,44 @@ class Manager extends BaseManager
      */
     public function login($request)
     {
-        return parent::login($request);
+        // Perform authentication:
+        try {
+            $hasShibbolethSession = $request->getServer('Shib-Session-ID', false);
+
+            if ($hasShibbolethSession) {
+                $user = $this->getAuth()->authenticate($request);
+            } else {
+                throw new AuthException('authentication_error_loggedout');
+            }
+        } catch (AuthException $e) {
+            // Pass authentication exceptions through unmodified
+            throw $e;
+        } catch (\VuFind\Exception\PasswordSecurity $e) {
+            // Pass password security exceptions through unmodified
+            throw $e;
+        } catch (\Exception $e) {
+            // Catch other exceptions, log verbosely, and treat them as technical
+            // difficulties
+            error_log(
+                "Exception in " . get_class($this) . "::login: " . $e->getMessage());
+            error_log($e);
+            throw new AuthException('authentication_error_technical');
+        }
+        
+        $_ENV['justLoggedIn'] = true;
+
+        // Store the user in the session and send it back to the caller:
+        $this->updateSession($user);
+        
+        // Set preferred settings right after log in, once
+        $limit = $this->userSettingsTable->getRecordsPerPage($user);
+        $sort = $this->userSettingsTable->getSorting($user);
+
+        // @FIXME: use session manager
+        $_SESSION['VuFind\Search\Solr\Options']['lastLimit'] = $limit;
+        $_SESSION['VuFind\Search\Solr\Options']['lastSort'] = $sort;
+        
+        return $user;
     }
 
     /**
@@ -89,6 +144,39 @@ class Manager extends BaseManager
     }
 
     /**
+     * Determines whether can current User place a reserve on any of passed holdings.
+     *
+     * We suppose the array of holdings contains items from only one institution.
+     *
+     * Returns false if are holdings empty or user not logged in.
+     *
+     * @param unknown $holdings
+     * @param unknown $user
+     * @return boolean $canReserveWithinInstitution
+     */
+    public function canReserveWithinInstitution($holdings, $user)
+    {
+        if (count($holdings) > 0 && $user instanceof \CPK\Db\Row\User) {
+
+            $firstHolding = reset($holdings);
+
+            if (isset($firstHolding['source']))
+                $institutionToMatch = $firstHolding['source'];
+            else
+                $institutionToMatch = reset(explode('.', $firstHolding['id']));
+
+            $userInstitutions = $user->getNonDummyInstitutions();
+
+            foreach ($userInstitutions as $userInstitution) {
+                if ($userInstitution === $institutionToMatch)
+                    return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
      * Tries to connect current logged in user with identity specified by token
      * user holds in cookie & we in session table.
      * Once the cookie is accessed
@@ -98,12 +186,12 @@ class Manager extends BaseManager
      * @throws \VuFind\Exception\PasswordSecurity
      * @return \CPK\Db\Row\UserRow $user
      */
-    public function connectIdentity()
+    public function consolidateIdentity()
     {
         $this->checkActiveAuthIsSIM();
 
         try {
-            $user = $this->getAuth()->connectIdentity();
+            $user = $this->getAuth()->consolidateIdentity();
         } catch (AuthException $e) {
             // Pass authentication exceptions through unmodified
             throw $e;
@@ -113,7 +201,8 @@ class Manager extends BaseManager
         } catch (\Exception $e) {
             // Catch other exceptions, log verbosely, and treat them as technical
             // difficulties
-            error_log("Exception in " . get_class($this) . "::login: " . $e->getMessage());
+            error_log(
+                "Exception in " . get_class($this) . "::login: " . $e->getMessage());
             error_log($e);
             throw new AuthException('authentication_error_technical');
         }
@@ -152,7 +241,7 @@ class Manager extends BaseManager
      * @param string $authName
      * @return \VuFind\Auth\AbstractBase
      */
-    public function getAuthInstance($authName)
+    public function getAuthInstance($authName = null)
     {
         if (empty($authName)) {
             return $this->auth[$this->activeAuth];
@@ -191,11 +280,13 @@ class Manager extends BaseManager
      */
     protected function checkActiveAuthIs($authToCheckFor, $errorMessage = null)
     {
-        if ($errorMessage === null)
-            $errorMessage = $this->activeAuth . " cannot process desired feature.";
+        if ($this->activeAuth !== $authToCheckFor) {
 
-        if ($this->activeAuth !== $authToCheckFor)
+            if ($errorMessage === null)
+                $errorMessage = $this->activeAuth . " cannot process desired feature.";
+
             throw new AuthException($errorMessage);
+        }
     }
 
     /**
@@ -206,6 +297,24 @@ class Manager extends BaseManager
      */
     protected function checkActiveAuthIsSIM()
     {
-        $this->checkActiveAuthIs("ShibbolethIdentityManager", "Account consolidation may provide only ShibbolethIdentityManager authentication method.");
+        $this->checkActiveAuthIs("ShibbolethIdentityManager",
+            "Account consolidation may provide only ShibbolethIdentityManager authentication method.");
+    }
+
+    /**
+     * Finds out if the notification system is enabled or not for logged in users
+     *
+     * This feature can be enabled in [Site] caption of config.ini with this:<br/>
+     * notificationsEnabled = 1
+     *
+     * @return boolean
+     */
+    public function isNotificationSystemEnabled()
+    {
+        if ($this->config->Site['notificationsEnabled'] !== null) {
+            return $this->config->Site['notificationsEnabled'];
+        }
+
+        return false;
     }
 }

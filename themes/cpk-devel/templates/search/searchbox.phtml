@@ -18,7 +18,7 @@
     $lastLimit = $options->getLastLimit();
 ?>
 <? if ($this->searchType == 'advanced'): ?>
-  <div id="searchForm" class="navbar-form navbar-left">
+  <div class="searchForm navbar-form navbar-left flip">
     <? $tabs = $this->render('search/searchTabs'); ?>
     <? if (!empty($tabs)): ?><?=$tabs ?><div class="tab-content clearfix"><? endif; ?>
       <p class="adv_search_terms"><?=$this->transEsc("Your search terms")?> : "<strong><?=$this->escapeHtml($this->lookfor)?></strong>"</p>
@@ -26,19 +26,46 @@
         <a href="<?=$this->url($advSearch)?>?edit=<?=$this->escapeHtmlAttr($this->searchId)?>"><?=$this->transEsc("Edit this Advanced Search")?></a> |
         <a href="<?=$this->url($advSearch)?>"><?=$this->transEsc("Start a new Advanced Search")?></a> |
         <a href="<?=$this->url($searchHome)?>"><?=$this->transEsc("Start a new Basic Search")?></a>
+        <? if (isset($_GET['fromAdvancedSearchId'])): ?>
+          	| <a class='btn btn-link' rel="nofollow" href="<?=$this->url($advSearch)?>?edit=<?=$this->escapeHtmlAttr(htmlspecialchars($_GET['fromAdvancedSearchId']))?>"><?=$this->transEsc("Edit this Advanced Search")?></a>
+    	<? endif; ?>
       </p>
     <? if (!empty($tabs)): ?></div><? endif; ?>
   </div>
 <? else: ?>
-  <form role="search" class="navbar-form navbar-left" method="get" action="<?=$this->url($basicSearch)?>" name="searchForm" id="searchForm" autocomplete="off">
+  <form class="searchForm navbar-form navbar-left flip" method="get" action="<?=$this->url($basicSearch)?>" name="searchForm" autocomplete="off">
     <?= $this->render('search/searchTabs'); ?>
-    <input class="form-control search-query<? if($this->searchbox()->autocompleteEnabled($this->searchClassId)):?> autocomplete searcher:<?=$this->escapeHtmlAttr($this->searchClassId) ?><? endif ?>" id="searchForm_lookfor" type="text" name="lookfor" value="<?=$this->escapeHtmlAttr($this->lookfor)?>"/>
-      <input type="hidden" name="type" value="<?=$this->escapeHtmlAttr($handlers[0]['value'])?>" />
-    <button type="submit" class="btn btn-primary find-button"><i class="fa fa-search"></i> <?=$this->transEsc("Find")?></button>
-    <? if ($advSearch): ?>
-      <a href="<?=$this->url($advSearch)?>" class="btn btn-link" rel="nofollow"><?=$this->transEsc("Advanced")?></a>
-    <? endif; ?>
+      <script>
+          jQuery(document).ready(function($){
+              $("#searchForm_lookfor").keyup(function(){
+                  $("#searchclear").toggle(Boolean($(this).val()));
+              });
+              $("#searchclear").toggle(Boolean($("#searchForm_lookfor").val()));
+              $("#searchclear").click(function(){
+                  $("#searchForm_lookfor").val('').focus();
+                  $(this).hide();
+              });
 
+              	$( ".search-query" ).on( 'change', function( event ) {
+                  	var query = $( this ).val();
+            		$( "#run-autocomplete" ).attr("href", "/Search/Results?lookfor=" + query + "&type=AllFields");
+           		});
+          });
+      </script>
+    <div class="col-xs-12 col-sm-6 search-form-container">
+      <input class="form-control search-query<? if($this->searchbox()->autocompleteEnabled($this->searchClassId)):?> autocomplete searcher:<?=$this->escapeHtmlAttr($this->searchClassId) ?><? endif ?>" id="searchForm_lookfor" type="text" name="lookfor" value="<?=$this->escapeHtmlAttr($this->lookfor)?>" autofocus placeholder="<?=$this->translate('autocomplete-placeholder')?>"/>
+      <i class="fa fa-times" id="searchclear"></i>
+    </div>
+      <input type="hidden" name="type" value="<?=$this->escapeHtmlAttr($handlers[0]['value'])?>" />
+    <a href='/Search/Results?lookfor=&type=AllFields' id='run-autocomplete' class="btn btn-primary find-button" title='<?=$this->transEsc("Find")?>'><i class="pr-interface-search"></i><span> <?=$this->transEsc("Find")?></span></a>
+    <span class="adv_search_links">
+        <? if ($advSearch): ?>
+          <a href="<?=$this->url($advSearch) . ((isset($this->searchId) && $this->searchId) ? '?edit=' . $this->escapeHtmlAttr($this->searchId) : '') ?>" class="btn btn-link" rel="nofollow"><?=$this->transEsc("Advanced")?></a>
+        <? endif; ?>
+    	<? if (isset($_GET['fromAdvancedSearchId'])): ?>
+          | <a class='btn btn-link' rel="nofollow" href="<?=$this->url($advSearch)?>?edit=<?=$this->escapeHtmlAttr(htmlspecialchars($_GET['fromAdvancedSearchId']))?>"><?=$this->transEsc("Edit this Advanced Search")?></a>
+        <? endif; ?>
+    </span>
     <? $shards = $options->getShards(); if ($options->showShardCheckboxes() && !empty($shards)): ?>
       <?
       $selectedShards = isset($this->selectedShards)
@@ -60,7 +87,7 @@
       <? $defaultFilterState = $options->getRetainFilterSetting() ? ' checked="checked"' : ''; ?>
       <div class="checkbox">
         <label>
-          <input onChange="$('.applied-filter').click()" type="checkbox"<?=$defaultFilterState?> id="searchFormKeepFilters"/>
+          <input onChange="$('.applied-filter').click()" type="checkbox"<?=$defaultFilterState?> class="searchFormKeepFilters"/>
           <?=$this->transEsc("basic_search_keep_filters")?>
         </label>
       </div>
@@ -90,5 +117,5 @@
       }
     ?>
   </form>
-  <script type="text/javascript">$("#searchForm_lookfor").focus()</script>
+  <script type="text/javascript">$(".searchForm_lookfor:visible").focus()</script>
 <? endif; ?>

@@ -649,9 +649,12 @@ class SolrMarc extends SolrDefault
         foreach ($fields as $field) {
             $subfields = $field->getSubfields();
             foreach ($subfields as $subfield) {
-                // Break the string into appropriate chunks,  and merge them into
-                // return array:
-                $toc = array_merge($toc, explode('--', $subfield->getData()));
+                // Break the string into appropriate chunks, filtering empty strings,
+                // and merge them into return array:
+                $toc = array_merge(
+                    $toc,
+                    array_filter(explode('--', $subfield->getData()), 'trim')
+                );
             }
         }
         return $toc;
@@ -798,6 +801,14 @@ class SolrMarc extends SolrDefault
      */
     protected function getRecordLinkNote($field)
     {
+        // If set, use relationship information from subfield i
+        if ($subfieldI = $field->getSubfield('i')) {
+            $data = trim($subfieldI->getData());
+            if (!empty($data)) {
+                return $data;
+            }
+        }
+
         // Normalize blank relationship indicator to 0:
         $relationshipIndicator = $field->getIndicator('2');
         if ($relationshipIndicator == ' ') {

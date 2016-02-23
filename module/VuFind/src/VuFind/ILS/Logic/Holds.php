@@ -122,22 +122,35 @@ class Holds
             $retVal[$groupKey] = [
                 'items' => $items,
                 'location' => isset($items[0]['location'])
-                    ? $items[0]['location']
-                    : ''
+                    ? $items[0]['location'] : '',
+                'locationhref' => isset($items[0]['locationhref'])
+                    ? $items[0]['locationhref'] : ''
             ];
             // Copy all text fields from the item to the holdings level
             foreach ($items as $item) {
                 foreach ($textFieldNames as $fieldName) {
-                    if (!empty($item[$fieldName])) {
-                        $fields = is_array($item[$fieldName])
-                            ? $item[$fieldName]
-                            : [$item[$fieldName]];
-
-                        foreach ($fields as $field) {
-                            if (empty($retVal[$groupKey][$fieldName])
-                                || !in_array($field, $retVal[$groupKey][$fieldName])
+                    if (in_array($fieldName, ['notes', 'holdings_notes'])) {
+                        if (empty($item[$fieldName])) {
+                            // begin aliasing
+                            if ($fieldName == 'notes'
+                                && !empty($item['holdings_notes'])
                             ) {
-                                $retVal[$groupKey][$fieldName][] = $field;
+                                // using notes as alias for holdings_notes
+                                $item[$fieldName] = $item['holdings_notes'];
+                            } elseif ($fieldName == 'holdings_notes'
+                                && !empty($item['notes'])
+                            ) {
+                                // using holdings_notes as alias for notes
+                                $item[$fieldName] = $item['notes'];
+                            }
+                        }
+                    }
+
+                    if (!empty($item[$fieldName])) {
+                        $targetRef = & $retVal[$groupKey]['textfields'][$fieldName];
+                        foreach ((array)$item[$fieldName] as $field) {
+                            if (empty($targetRef) || !in_array($field, $targetRef)) {
+                                $targetRef[] = $field;
                             }
                         }
                     }
@@ -489,7 +502,8 @@ class Holds
         // Build Params
         return [
             'action' => $action, 'record' => $details['id'],
-            'source' => isset($details['source']) ? $details['source'] : 'VuFind',
+            'source' => isset($details['source'])
+                ? $details['source'] : DEFAULT_SEARCH_BACKEND,
             'query' => $queryString, 'anchor' => "#tabnav"
         ];
     }

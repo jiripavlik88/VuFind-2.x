@@ -70,9 +70,12 @@ class Factory
         $sessionManager = $sm->get('VuFind\SessionManager');
         $pm = $sm->get('VuFind\AuthPluginManager');
         $cookieManager = $sm->get('VuFind\CookieManager');
+        $userSettingsTable = $sm->get('VuFind\DbTablePluginManager')
+            ->get('usersettings');
 
         // Build the object:
-        return new Manager($config, $userTable, $sessionManager, $pm, $cookieManager);
+        return new Manager($config, $userTable, $sessionManager, $pm,
+            $cookieManager, $userSettingsTable);
     }
 
     /**
@@ -95,6 +98,33 @@ class Factory
             $sm->getServiceLocator()->get('VuFind\Config'),
             $sm->getServiceLocator()->get('VuFind\DbTablePluginManager')->get('user')
             );
+    }
+
+    /**
+     * Construct the ILS authenticator.
+     *
+     * @param ServiceManager $sm Service manager.
+     *
+     * @return ILSAuthenticator
+     */
+    public static function getILSAuthenticator(ServiceManager $sm)
+    {
+        // Construct the ILS authenticator as a lazy loading value holder so that
+        // the object is not instantiated until it is called. This helps break a
+        // potential circular dependency with the MultiBackend driver as well as
+        // saving on initialization costs in cases where the authenticator is not
+        // actually utilized.
+        $callback = function (& $wrapped, $proxy) use ($sm) {
+            // Generate wrapped object:
+            $auth = $sm->get('VuFind\AuthManager');
+            $catalog = $sm->get('VuFind\ILSConnection');
+            $wrapped = new ILSAuthenticator($auth, $catalog);
+
+            // Indicate that initialization is complete to avoid reinitialization:
+            $proxy->setProxyInitializer(null);
+        };
+        $factory = new \ProxyManager\Factory\LazyLoadingValueHolderFactory();
+        return $factory->createProxy('CPK\Auth\ILSAuthenticator', $callback);
     }
 
 }

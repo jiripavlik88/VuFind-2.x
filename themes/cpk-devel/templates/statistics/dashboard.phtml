@@ -3,14 +3,15 @@
     $this->headTitle($this->translate('Statistics'));
 
     // Set up breadcrumbs:
-    $this->layout()->breadcrumbs = '<li><a href="'.$this->url('myresearch-home').'">'.$this->transEsc('Your Account').'</a></li>' 
-    							  .'<li class="active">' . $this->transEsc('Statistics') . '</li>';
+    $this->layout()->breadcrumbs = '<li><a title="' . $this->transEsc('Main page') . '" href="/Search">' . $this->transEsc('Main page') . '</a></li> '.
+    '<li><a href="'.$this->url('myresearch-home').'">'.$this->translate('Your Account').'</a></li>' 
+    							  .'<li class="active">' . $this->translate('Statistics') . '</li>';
     
     echo $this->render('statistics/menu.phtml');
     
     echo $this->render('statistics/calendar.phtml');
 ?>
-
+<ul class="breadcrumb hidden-print"><?=$this->layout()->breadcrumbs ?></ul>
 <div class="row">
 	<div class="<?=$this->layoutClass('mainbody')?>">
 	
@@ -19,8 +20,8 @@
 				<div class="panel panel-default">
 					<div class="panel-heading">
 						<h3 class="panel-title">
-							<i class="fa fa-search fa-fw"></i> 
-							<?= $this->transEsc('Top referrers'); ?> 
+							<i class="icon-hledani"></i>
+							<?= $this->translate('Top referrers'); ?> 
 						</h3>
 					</div>
 					<div class="panel-body">
@@ -28,8 +29,8 @@
 							<table class="table table-hover table-striped">
 								<thead>
 									<tr>
-										<th><?= $this->transEsc('Referrers') ?></th>
-		            					<th class='text-center'><?= $this->transEsc('Visits') ?></th>
+										<th><?= $this->translate('Referrers') ?></th>
+		            					<th class='text-center'><?= $this->translate('Visits') ?></th>
 		            				</tr>
 		            			</thead>
 		            			<tbody>
@@ -42,7 +43,7 @@
 		            						$searchesHtml .= "\t\t\t\t\t\t\t\t\t".$value['referrer']."\n";
 		            						$searchesHtml .= "\t\t\t\t\t\t\t\t</td>\n";
 		            						$searchesHtml .= "\t\t\t\t\t\t\t\t<td class='text-center'>\n";
-		            						$searchesHtml .= "\t\t\t\t\t\t\t\t\t".$value['count']."\n";
+		            						$searchesHtml .= "\t\t\t\t\t\t\t\t\t".number_format($value['count'], 0, ',', ' ')."\n";
 		            						$searchesHtml .= "\t\t\t\t\t\t\t\t</td>\n";
 		            						$searchesHtml .= "\t\t\t\t\t\t\t<tr>\n";
 		            					}
@@ -53,7 +54,7 @@
 		            		</table>
 		            	</div>
 						<div class="text-right">
-							<a id='download-referrers'><?= $this->transEsc('Download full list in CSV'); ?> <i class="fa fa-cloud-download"></i></a>
+							<a id='download-referrers'><?= $this->translate('Download full list in CSV'); ?> <i class="fa fa-cloud-download"></i></a>
 						</div>
 					</div>
 				</div>
@@ -67,7 +68,7 @@
 					<div class="panel-heading">
 						<h3 class="panel-title">
 							<i class="fa fa-user fa-fw"></i>
-		 					<?= $this->transEsc('Referred types') ?>
+		 					<?= $this->translate('Referred types') ?>
 						</h3>
 					</div>
 					<div class="panel-body">
@@ -84,10 +85,9 @@
 	</div>
 </div>
 
-<script src="js/raphael.min.js"></script>
-<script src="vendor/jquery.min.js"></script>
-<script src="js/morris-0.4.1.min.js"></script>
-<script src="js/jquery-ui.min.js"></script>
+<? $this->headScript()->appendFile("raphael.min.js"); ?>
+<? $this->headScript()->appendFile("morris-0.4.1.min.js"); ?>
+<? $this->headScript()->appendFile("jquery-ui.min.js"); ?>
 <script>
 	jQuery( document ).ready( function( $ ) {
 		// Sets menu item as active
@@ -109,7 +109,7 @@
 					
 				{ 
 					label: "<?= $this->translate($val['referrerType']) ?>", 
-			        value: <?= $val['count'] ?> 
+			        value: <?= number_format($val['count'], 0, ',', ' ') ?> 
 			    },
 			    
 				<?

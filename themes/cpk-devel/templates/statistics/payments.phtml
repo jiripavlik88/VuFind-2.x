@@ -3,9 +3,10 @@
     $this->headTitle($this->translate('Statistics'));
 
     // Set up breadcrumbs:
-    $this->layout()->breadcrumbs = '<li><a href="'.$this->url('myresearch-home').'">'.$this->transEsc('Your Account').'</a></li>' 
-    							  .'<li><a href="'.$this->url('statistics-dashboard').'">' . $this->transEsc('Statistics') . '</a></li>'
-    							  .'<li class="active">' . $this->transEsc('Payments') . '</li>';
+    $this->layout()->breadcrumbs = '<li><a title="' . $this->transEsc('Main page') . '" href="/Search">' . $this->transEsc('Main page') . '</a></li> '.
+                                   '<li><a href="'.$this->url('myresearch-home').'">'.$this->translate('Your Account').'</a></li>' 
+    							  .'<li><a href="'.$this->url('statistics-dashboard').'">' . $this->translate('Statistics') . '</a></li>'
+    							  .'<li class="active">' . $this->translate('Payments') . '</li>';
     
     echo $this->render('statistics/menu.phtml');
     
@@ -25,7 +26,7 @@
 		 					</div>
 							<div class="col-xs-9 text-right">
 		 						<div class="huge">20 543</div>
-								<div><?= $this->transEsc('Registrations'); ?></div>
+								<div><?= $this->translate('Registrations'); ?></div>
 							</div>
 						</div>
 					</div>
@@ -39,8 +40,8 @@
 								<i class="fa fa-clock-o fa-4x"></i>
 		 					</div>
 							<div class="col-xs-9 text-right">
-		 						<div class="huge">32 580</div>
-								<div><?= $this->transEsc('Prolongations'); ?></div>
+		 						<div class="huge"><?= number_format(32580, 0, ',', ' ') ?></div>
+								<div><?= $this->translate('Prolongations'); ?></div>
 							</div>
 						</div>
 					</div>
@@ -54,8 +55,8 @@
 								<i class="fa fa-bookmark fa-4x"></i>
 		 					</div>
 							<div class="col-xs-9 text-right">
-		 						<div class="huge">12 520</div>
-								<div><?= $this->transEsc('Reservatons'); ?></div>
+		 						<div class="huge"><?= number_format(12520, 0, ',', ' ') ?></div>
+								<div><?= $this->translate('Reservatons'); ?></div>
 							</div>
 						</div>
 					</div>
@@ -69,8 +70,8 @@
 								<i class="fa fa-warning fa-4x"></i>
 		 					</div>
 							<div class="col-xs-9 text-right">
-		 						<div class="huge">13 589</div>
-								<div><?= $this->transEsc('Fines'); ?></div>
+		 						<div class="huge"><?= number_format(13589, 0, ',', ' ') ?></div>
+								<div><?= $this->translate('Fines'); ?></div>
 							</div>
 						</div>
 					</div>
@@ -85,7 +86,7 @@
 				    <div class="panel-heading">
 				        <h3 class="panel-title">
 				            <i class="fa fa-clock-o fa-fw"></i>
-				             <?= $this->transEsc('Payments in time') ?>
+				             <?= $this->translate('Payments in time') ?>
 				        </h3>
 				    </div>
 				    <div class="panel-body">
@@ -103,10 +104,9 @@
 </div>
 <!-- /.row -->
 
-<script src="js/raphael.min.js"></script>
-<script src="vendor/jquery.min.js"></script>
-<script src="js/morris-0.4.1.min.js"></script>
-<script src="js/jquery-ui.min.js"></script>
+<? $this->headScript()->appendFile("raphael.min.js"); ?>
+<? $this->headScript()->appendFile("morris-0.4.1.min.js"); ?>
+<? $this->headScript()->appendFile("jquery-ui.min.js"); ?>
 <script>
 	jQuery( document ).ready( function( $ ) {
 		
@@ -193,7 +193,7 @@
 	        ],
 	        xkey: 'period',
 	        ykeys: [ 'registrace', 'prolongace', 'rezervace', 'upominky' ],
-	        labels: [ '<?= $this->transEsc('Registrations'); ?>', '<?= $this->transEsc('Prolongations'); ?>', '<?= $this->transEsc('Reservations'); ?>', '<?= $this->transEsc('Fines'); ?>' ],
+	        labels: [ '<?= $this->translate('Registrations'); ?>', '<?= $this->translate('Prolongations'); ?>', '<?= $this->translate('Reservations'); ?>', '<?= $this->translate('Fines'); ?>' ],
 	        lineColors: ['#0F5693', '#389438', '#B57213', '#A6201C'],
 	        fillOpacity: 0.9,
 	        behaveLikeLine: true,
