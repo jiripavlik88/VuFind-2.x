@@ -14,3 +14,4 @@ xcncip2.ini
 *.example
 *.swp
 private/
+configs.sql
