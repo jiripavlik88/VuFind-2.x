@@ -57,9 +57,10 @@ function buildFacetNodes(data, currentPath, allowExclude, excludeTitle, counts)
       'children': children,
       'applied': this.isApplied,
       'state': {
-        'opened': this.hasAppliedChildren
+        'opened': this.hasAppliedChildren,
+        'selected': this.isApplied
       },
-      'li_attr': this.isApplied ? { 'class': 'active' } : {}
+      'li_attr': this.isApplied ? { 'class': 'active' } : {},
     });
   });
 
