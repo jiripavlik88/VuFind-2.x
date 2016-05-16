@@ -7,11 +7,6 @@
   margin-top: -20px;
 }
 
-//search controls margin bottom
-.search-controls {
-  margin-bottom: 10px;
-}
-
 //search controls on one line
 .search-controls .text-right {
   margin-top:-6px;
@@ -78,21 +73,16 @@
   }
 }
 
-.dedupInformation {
-  margin-top: 10px;
-}
-
 .show-next-institutions {
   cursor: pointer;
   font-weight: bold;
   color: @brand-primary;
 }
 
-.root-title a {
-    color: #e5004b !important;
-    font-size: 140% !important;
-    font-weight: 700 !important;
-    line-height: 17px !important;
+.result .root-title a {
+    font-size: 140%;
+    font-weight: bold;
+    line-height: 1.1;
 }
 
 .summDate {
@@ -110,6 +100,7 @@
   .row > div {
     padding-top: 19px;
   }
+  border-color: @border-color;
 }
 
 .highlight, mark {
@@ -153,11 +144,12 @@
 }
 
 .search-result-container {
-    border-right: 1px solid #ddd;
+    border-right: 1px solid @border-color;
 }
 
 .records-in-libraries-title {
     font-weight: bold;
+    margin-left: 4px;
 }
 
 .scrollable-menu {
@@ -168,6 +160,39 @@
     padding: 6px;
 }
 
+.scrollable-menu li {
+    padding: 0px 10px 0px 10px;
+}
+
+.scrollable-menu li a {
+    color: @brand-primary;
+    font-size: 100%;
+}
+
 .coverThumbnail {
     margin-bottom: 8px;
+}
+
+#results-amount-info-placeholder {
+    color: #666666;
+    margin-top: 10px;
+}
+
+search-result-container p {
+    color: #666666;
+}
+
+.side-facets-header {
+    font-weight: bold;
+    margin-bottom: 20px;
+    margin-top: 10px;
+}
+
+.sidebar .list-group-item.title {
+    font-size: 110%;
+    color: @brand-primary;
+}
+
+.sidebar a.narrow-toggle {
+    color: @brand-primary;
 }

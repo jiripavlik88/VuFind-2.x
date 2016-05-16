@@ -13,18 +13,37 @@
     margin-bottom: 10px;
   }
 }
-.searchForm{
-  width: 100%;
-  margin-top: 40px;
+
+.frontpage .searchForm{
   margin-bottom: 65px;
 }
+
+.searchForm{
+  width: 100%;
+}
+
+.scrollable-search-panel {
+  position: relative;
+  top: -32px;
+}
+
+.scrollable-search-panel-options {
+  text-align: right;
+}
+
+.disabled-link {
+  color: #ddd;
+}
+
 .search-form-container{
   padding: 0px;
   & > .twitter-typeahead{
     width: 100%;
   }
+  margin-left: 20%;
 }
 #searchForm_lookfor{
+  margin-top: 24px;
   width: 100%;
 }
 
@@ -49,6 +68,9 @@
     background-color: #b2003a;
     border: 2px solid #b71b4b;
   }
+  margin-top: 24px;
+  padding-top: 7px;
+  padding-bottom: 7px;
 }
 .form-control {
   max-width: 1000px;

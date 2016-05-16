@@ -154,7 +154,7 @@ var holdingsILS = {
 	if (typeof status !== 'undefined')
 	    label.text(status);
 	else {
-	    label.text('unknown status');
+	    label.text(VuFind.translate('unknown status'));
 	    setUnknownLabel = true;
 	}
 
@@ -209,7 +209,7 @@ var holdingsILS = {
 	if (labelSet === false) {
 	    var labelType = typeof value.label === 'undefined' ? 'label-success' : value.label;
 
-	    label.removeClass('label-primary').addClass(labelType);
+	    label.removeClass('label-primary').removeClass('label-unknown').addClass(labelType);
 	}
 	
 	var availability = value.availability;

@@ -4,6 +4,10 @@
 @primary :              @brand-primary;
 @link-color:            @brand-primary;
 @link-hover-color:      #222222;
+@grey-text-color:       #999999;
+@border-color:          #EEEEEE;
+@grey-color:            #CCCCCC;
+@light-grey:            #DDDDDD;
 
 @border-radius-base:        0px;
 @border-radius-large:       0px;
@@ -71,7 +75,7 @@
 @lightbg-text: rgba(0,0,0,0.84);
 
 // Bootstrap variables
-@body-bg: #EEEEEE;
+@body-bg: #F6F6F6;
 
 // Define the maximum width of `.container` for "large desktop" screen size
 @container-large-desktop:      (1220px + @grid-gutter-width);
@@ -81,12 +85,13 @@
 
 //== Typography
 //
-@font-family-sans-serif:  LatoWeb;
+@font-family-sans-serif:  Soleil, LatoWeb;
 
-@font-size-base:          16px;
+@font-size-base:          15px;
 @font-size-h1:            48px;
 h1, .h1 {
-  font-family: LatoWebBold;
+  font-family: Soleil, LatoWebBold;
+  font-weight: bold;
 }
 
 @input-height-base:       46px;
@@ -94,4 +99,3 @@ h1, .h1 {
   border: 2px solid @input-border;
 }
 
-@line-height-base:        1.875;

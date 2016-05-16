@@ -2,7 +2,7 @@
     $portalPages = $this->portalPages()->getAllPages();
 ?>
 <div class="row">
-  <div class="col-sm-4">
+  <div class="col-sm-3">
     <h2><?=$this->transEsc('Search Options')?></h2>
     <ul>
       <li><a href="<?=$this->url('search-history')?>"><?=$this->transEsc('Search History')?></a></li>
@@ -23,19 +23,31 @@
       <? endif; ?>
     </ul>
   </div>
-  <div class="col-sm-4">
+  <div class="col-sm-3">
     <h2 id='aboutPortalHeader'><?=$this->transEsc('About portal knihovny.cz')?></h2>
     <ul>
       <? if (count($portalPages)): ?>
         <? foreach ($portalPages as $page): ?>
-          <? if ($page['placement'] === 'footer' && $page['position'] === 'middle'): ?>
+          <? if ($page['placement'] === 'footer' && $page['position'] === 'middle-left'): ?>
             <li><a href='/Portal/Page/<?=$page['pretty_url']?>' title='<?=$page['title']?>'><?=$page['title']?></a></li>
           <? endif; ?>
         <? endforeach; ?>
       <? endif; ?>
     </ul>
   </div>
-  <div class="col-sm-4">
+  <div class="col-sm-3">
+    <h2 id='aboutPortalHeader'><?=$this->transEsc('About libraries')?></h2>
+    <ul>
+      <? if (count($portalPages)): ?>
+        <? foreach ($portalPages as $page): ?>
+          <? if ($page['placement'] === 'footer' && $page['position'] === 'middle-right'): ?>
+            <li><a href='/Portal/Page/<?=$page['pretty_url']?>' title='<?=$page['title']?>'><?=$page['title']?></a></li>
+          <? endif; ?>
+        <? endforeach; ?>
+      <? endif; ?>
+    </ul>
+  </div>
+  <div class="col-sm-3">
     <h2><?=$this->transEsc('Need Help?')?></h2>
     <ul>
       <li><a target="_blank" href="https://docs.google.com/a/mzk.cz/document/d/1pc1F4tQkkV1-SmnxuBztdfcVAINIfv7TMrkTOIEP5QI/edit?usp=sharing"><?=$this->transEsc('Hint')?></a></li>
@@ -50,3 +62,46 @@
     </ul>
   </div>
 </div>
+<div class='row'>
+  <div class='col-sm-6' style='padding-right: 20px;'>
+	<h2><?=$this->translate('Footer header')?></h2>
+	<p class='info'>
+	Portál Knihovny.cz je výsledkem několikaletého vývoje směřujícího
+	k vytvoření centrálního místa, kde můžete současně prohledávat katalogy
+	knihoven z celé České republiky. Cílem bylo najít řešení, díky němuž
+	snadno získáte knihu či informace, aniž byste danou knihovnu museli
+	navštívit nebo složitě vyhledávat v databázích každé jednotlivé knihovny.
+	</p>
+  </div>
+  <div class='col-sm-3'>
+    <h2><?=$this->translate('Develops')?></h2>
+	 <a href='http://mzk.cz/' title='<?=$this->translate('source_mzk');?>' target='_blank'>
+	 	<img class='logo' height='40' style='margin-left: 20px;' src='https://www.mzk.cz/sites/mzk.cz/themes/mzk/logo.png'>
+	 </a>
+	 <img class='logo' height='60' style='margin-left: 17px; margin-top: 30px;' src='http://nzm.cz/multimedia/uploads/2016/03/logo-mkcr-300x97.png'>
+  </div>
+  <div class='col-sm-3'>
+    <h2><?=$this->translate('Follow us')?></h2>
+	<div class='social'>
+    	<a href='#' title='Facebook - Knihovny.cz' target='_blank'>
+        	<img alt='Facebook - Knihovny.cz' class='social-icon' width='64' src='https://cdn0.iconfinder.com/data/icons/flat-social-media-icons-set-round-style-1/550/facebook-128.png'>
+        </a>
+
+        <a href='#' title='RSS - Knihovny.cz' target='_blank'>
+        	<img alt='RSS - Knihovny.cz' class='social-icon' width='64' src='https://cdn0.iconfinder.com/data/icons/flat-social-media-icons-set-round-style-1/550/rss-128.png'>
+        </a>
+
+        <a href='#' title='Github - Knihovny.cz' target='_blank'>
+        	<img alt='Github - Knihovny.cz' class='social-icon' width='64' src='https://cdn0.iconfinder.com/data/icons/flat-social-media-icons-set-round-style-1/550/github-128.png'>
+        </a>
+    </div>
+
+	<div class='copyright'>
+		<p>
+			<span>&copy; 2015 - <?=date("Y")?></span>
+			<a href='http://mzk.cz/' title='<?=$this->translate('source_mzk');?>' target='_blank'>Moravian Library</a>
+		</p>
+	</div>
+  </div>
+</div>
+

@@ -30,9 +30,9 @@ namespace CPK\Controller;
 use MZKCommon\Controller\AjaxController as AjaxControllerBase, VuFind\Exception\ILS as ILSException;
 
 class AjaxController extends AjaxControllerBase
-{   
+{
     use \VuFind\Db\Table\DbTableAwareTrait;
-    
+
     /**
      * Downloads SFX JIB content for current record.
      *
@@ -603,6 +603,74 @@ class AjaxController extends AjaxControllerBase
                 self::STATUS_ERROR);
     }
 
+    public function getMyHistoryPageAjax()
+    {
+            // Get the cat_username being requested
+        $post = $this->params()->fromPost();
+        $cat_username = $post['cat_username'];
+
+        $hasPermissions = $this->hasPermissions($cat_username);
+
+        if ($hasPermissions instanceof \Zend\Http\Response)
+            return $hasPermissions;
+
+        $renderer = $this->getViewRenderer();
+
+        $catalog = $this->getILS();
+
+        $ilsDriver = $catalog->getDriver();
+
+        if ($ilsDriver instanceof \CPK\ILS\Driver\MultiBackend) {
+
+            $patron = [
+                'cat_username' => $cat_username,
+                'id' => $cat_username
+            ];
+
+            $page = isset($post['page']) ? $post['page'] : 1;
+            $perPage = isset($post['perPage']) ? (int) $post['perPage'] : 10;
+
+            try {
+                // Try to get the profile ..
+                $result = $ilsDriver->getMyHistoryPage($patron, $page, $perPage);
+            } catch (\Exception $e) {
+                return $this->outputException($e, $cat_username);
+            }
+
+            $i = 0;
+            foreach ($result['historyPage'] as &$historyItem) {
+
+                $resource = $this->getDriverForILSRecord($historyItem);
+
+                // We need to let JS know what to opt for ...
+                $historyItem['uniqueId'] = $resource->getUniqueId() . ++$i; //adding order to id (as suffix) to be able to show more covers with same id
+                $bibInfo = $renderer->record($resource)->getObalkyKnihJSONV3();
+
+                if ($bibInfo) {
+                    $recordId = "#cover_$recordId";
+
+                    $bibInfo = json_decode($bibInfo);
+
+                    $recordId = preg_replace("/[\.:]/", "", $recordId);
+
+                    $obalky[$recordId] = [
+                        'bibInfo' => $bibInfo,
+                        'advert' => $renderer->record($resource)->getObalkyKnihAdvert(
+                            'checkedouthistory')
+                    ];
+                } else {
+                    $historyItem['thumbnail'] = $this->url()->fromRoute('cover-unavailable');
+                }
+            }
+
+            return $this->output($result, self::STATUS_OK);
+        } else
+            return $this->output([
+                'cat_username' => $cat_username,
+                'message' => 'ILS Driver isn\'t instanceof MultiBackend - ending job now.'
+            ], self::STATUS_ERROR);
+    }
+
     /**
      * Fetches recent notifications.
      *
@@ -1016,6 +1084,9 @@ class AjaxController extends AjaxControllerBase
             $cat_username = 'unknown';
             $source = $cat_username;
         } else {
+
+            $cat_username = str_replace(':', '\:', $cat_username);
+
             $splittedCatUsername = explode('.', $cat_username);
 
             $source = $splittedCatUsername[0];
@@ -1248,7 +1319,7 @@ class AjaxController extends AjaxControllerBase
 
         return $this->output([], self::STATUS_OK);
     }
-    
+
     /**
      * Return search results
      *
@@ -1261,5 +1332,59 @@ class AjaxController extends AjaxControllerBase
         $viewData = $searchController->ajaxResultsAction($postParams);
 
         return $this->output($viewData, self::STATUS_OK);
+    }
+
+    /**
+     * Save chosen institutions to DB
+     *
+     * @return \Zend\Http\Response
+     */
+    public function saveTheseInstitutionsAjax()
+    {
+        // Stop now if the user does not have valid catalog credentials available:
+        if (! $user = $this->getAuthManager()->isLoggedIn()) {
+            $this->flashExceptions($this->flashMessenger());
+            return $this->forceLogin();
+        }
+
+        $institutions = $this->params()->fromPost('institutions');
+
+        if ($user) {
+            try {
+                $userSettingsTable = $this->getTable("usersettings");
+                $userSettingsTable->saveTheseInstitutions($user, $institutions);
+            } catch (\Exception $e) {
+                return $this->outputException($e);
+            }
+
+        } else {
+            return $this->output([message => "You can't save these institutions when you are not logged in."], self::STATUS_NEED_AUTH);
+        }
+
+        return $this->output([], self::STATUS_OK);
+    }
+
+    /**
+     * Get saved institutions
+     *
+     * @return \Zend\Http\Response
+     */
+    public function getSavedInstitutionsAjax()
+    {
+        // Stop now if the user does not have valid catalog credentials available:
+        if (! $user = $this->getAuthManager()->isLoggedIn()) {
+            $this->flashExceptions($this->flashMessenger());
+            return $this->forceLogin();
+        }
+
+        $savedInstitutions = '';
+        try {
+            $userSettingsTable = $this->getTable("usersettings");
+            $savedInstitutions = $userSettingsTable->getSavedInstitutions($user);
+        } catch (\Exception $e) {
+            return $this->outputException($e);
+        }
+
+        return $this->output(['savedInstitutions' => $savedInstitutions], self::STATUS_OK);
     }
 }

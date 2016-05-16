@@ -6,28 +6,28 @@
   if (empty($lookfor)) {
       $lookfor = $this->record($this->driver)->getObalkyKnihAdvert('results');
   }
-  
+
   /* Display information on duplicate records if available */
   $records = $this->driver->getDedupData();
-   
+
   // Sort records in libraries
   $countRecords = count($records);
-   
+
   if ($countRecords) {
       // put caslin at the end and cnb before caslin, when available
       // but keep at the front when is set in facet params
       $filters = $params->getFilters();
-       
+
       $caslinFoundInFilters = 0;
       $cnbFoundInFilters = 0;
-       
+
       $institutionsInFilters = [];
       if (isset($filters['~institution'])) {
           $institutionsInFilters = $filters['~institution'];
       } else if (isset($filters['institution'])) {
           $institutionsInFilters = $filters['institution'];
       }
-       
+
       if(count($institutionsInFilters)) {
           foreach($institutionsInFilters as $institution) {
               if (strpos($institution,'CASLIN') !== false) {
@@ -38,7 +38,7 @@
               }
           }
       }
-       
+
       if ($cnbFoundInFilters == 0) {
           if (isset($records['cnb'])) {
               $cnb = $records['cnb'];
@@ -46,7 +46,7 @@
               $records['cnb'] = $cnb;
           }
       }
-       
+
       if ($caslinFoundInFilters == 0) {
           if (isset($records['caslin'])) {
               $caslin = $records['caslin'];
@@ -54,7 +54,7 @@
               $records['caslin'] = $caslin;
           }
       }
-       
+
       // Institutes in filters will be on top of the list
       $institutionsMappings = [];
       if ($this->institutionsMappings) {
@@ -62,7 +62,7 @@
               $institutionsMappings[md5($value)] = $key;
           }
       }
-       
+
       foreach ($institutionsInFilters as $institution) {
           if (isset($institutionsMappings[md5($institution)])) {
               if (array_key_exists($institutionsMappings[md5($institution)], $records)) {
@@ -75,7 +75,7 @@
               }
           }
       }
-       
+
       // When selected town, select all intitutes in that town and put theme in
       // the front of the list
       $institutionsInTowns = [];
@@ -91,7 +91,7 @@
               }
           }
       }
-       
+
       foreach ($institutionsInTowns as $value) {
           $recordKey = $institutionsMappings[md5($value)];
           if (isset($records[$recordKey])) {
@@ -104,8 +104,9 @@
       }
   }
   //
-  
+
   $firstRecordInInstitutions = reset($records);
+
 ?>
 <div class="<?=$this->driver->supportsAjaxStatus()?'ajaxItem ':''?>col-xs-12">
     <div class="white-box clearfix">
@@ -114,19 +115,19 @@
             <? $recordId =  preg_replace("/\./", "", $recordId)?>
             <? $recordId =  preg_replace("/:/", "", $recordId)?>
             <? if ($this->params->getSearchType() == 'advanced'): ?>
-            <a href='/Record/<?=$firstRecordInInstitutions['id']?>?fromAdvancedSearchId=<?=$this->results->getSearchId()?>' title='<?=$this->driver->getTitle()?>' tabindex='-1' style='cursor: pointer;'>
+            <a href='/Record/<?=$firstRecordInInstitutions['id']?>?referer=<?=$this->referer?>' title='<?=$this->driver->getTitle()?>' tabindex='-1' style='cursor: pointer;'>
             <? else: ?>
-            <a href='/Record/<?=$firstRecordInInstitutions['id']?>?fromSearchId=<?=$this->results->getSearchId()?>' title='<?=$this->driver->getTitle()?>' tabindex='-1' style='cursor: pointer;'>
+            <a href='/Record/<?=$firstRecordInInstitutions['id']?>?referer=<?=$this->referer?>' title='<?=$this->driver->getTitle()?>' tabindex='-1' style='cursor: pointer;'>
             <? endif;?>
             	<div class="coverThumbnail cover_<?=$recordId?>">
-            	
+
                     <? if ($bibinfo = $this->record($this->driver)->getObalkyKnihJSONV3()): ?>
                         <script type="text/javascript">
                             obalky.display_thumbnail_cover_without_links(".cover_<?=$recordId?>", <?=$bibinfo?>, <?=json_encode($lookfor)?>);
                         </script>
                     <? endif;?>
                     <? if (! empty($formats)): ?>
-                        <div class="iconlabel"><i style="font-size: 70px; color: #cccccc;" class="fa fa-fw <?=$this->record($this->driver)->getFormatClass($formats[0])?>"></i></div>
+                        <div class="iconlabel"><i style="font-size: 70px; color: #cccccc;" class="pr-format-<?=$this->record($this->driver)->getFormatClass($formats[0])?>"></i></div>
                     <? elseif ($summThumb = $this->record($this->driver)->getThumbnail()): ?>
                         <img class="recordcover" src="<?=$this->escapeHtmlAttr($summThumb)?>" alt="<?=$this->transEsc('Cover Image')?>"/>
                     <? else: ?>
@@ -140,9 +141,9 @@
     <div class="col-sm-7 col-xs-7 middle search-result-container">
       <div class="root-title">
         <? if ($this->params->getSearchType() == 'advanced'): ?>
-        <a href="/Record/<?=$firstRecordInInstitutions['id']?>?fromAdvancedSearchId=<?=$this->results->getSearchId()?>" class="title">
+        <a href="/Record/<?=$firstRecordInInstitutions['id']?>?referer=<?=$this->referer?>" class="title">
         <? else: ?>
-        <a href="/Record/<?=$firstRecordInInstitutions['id']?>?fromSearchId=<?=$this->results->getSearchId()?>" class="title">
+        <a href="/Record/<?=$firstRecordInInstitutions['id']?>?referer=<?=$this->referer?>" class="title">
         <? endif;?>
         <?
           $summHighlightedTitle = $this->driver->getHighlightedTitle();
@@ -162,13 +163,14 @@
         <? if($this->driver->isCollection()): ?>
           <?=implode('<br>', $this->driver->getSummary()); ?>
         <? else: ?>
-          <? $summAuthor = $this->driver->getPrimaryAuthor(); if (!empty($summAuthor)): ?>
-          <a class='author-info' href="<?=$this->record($this->driver)->getLink('author', $summAuthor)?>"><?
+          <? $summAuthor = $this->driver->getPrimaryAuthor();
+            if (!empty($summAuthor)):
             $summHighlightedAuthor = $this->driver->getHighlightedAuthor();
             $author = !empty($summHighlightedAuthor)
                 ? $this->highlight($summHighlightedAuthor)
                 : $this->escapeHtml($summAuthor);
           ?>
+          <a class='author-info' href="/Search/Results?sort=relevance&join=AND&type0[]=adv_search_author_corporation&bool0[]=AND&searchTypeTemplate=advanced&lookfor0[]=<?=urlencode($author)?>">
           <?=$author?>
           </a>
           <? endif; ?>
@@ -202,18 +204,18 @@
           <? endif; ?>
         <? endforeach;?>
       </div>
-      
+
       <table><?= $this->record($this->driver)->displayField773(); ?></table>
-      
+
       <? $summ = $this->driver->getSummary(); if (!empty($summ)): ?>
           <? foreach ($summ as $field): ?>
             <p><?=substr($this->escapeHtml($field), 0, 200)?>...</p>
           <? endforeach; ?>
-        
+
         <? else: ?>
           <? $summOK = $this->driver->getSummaryObalkyKnih(); if (!empty($summOK)): ?>
             <p><?=substr($this->escapeHtml($summOK), 0, 200)?>...</p>
-    
+
           <? endif; ?>
         <? endif; ?>
 
