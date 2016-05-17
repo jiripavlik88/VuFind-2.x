@@ -277,3 +277,52 @@ DROP TABLE `aleph_mappings`;
 DROP TABLE `aleph_configs`;
 DROP TABLE `xcncip2_configs`;
 DROP TABLE `institutions`;
+
+UPDATE `system` SET `value`='19' WHERE `key`='DB_VERSION';
+
+CREATE TABLE IF NOT EXISTS `inst_translations` (
+  `id` int(11) NOT NULL,
+  `source` varchar(100) NOT NULL,
+  `key` varchar(30) NOT NULL,
+  `cs_translated` mediumtext NOT NULL,
+  `en_translated` mediumtext NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Table holding translations defined by institutions themselves';
+
+ALTER TABLE `inst_translations`
+ ADD PRIMARY KEY (`id`);
+
+ALTER TABLE `inst_translations` CHANGE `id` `id` INT(11) NOT NULL AUTO_INCREMENT;
+
+UPDATE `system` SET `value`='20' WHERE `key`='DB_VERSION';
+
+CREATE TABLE IF NOT EXISTS `inst_configs` (
+  `id` int(11) NOT NULL,
+  `source` varchar(10) NOT NULL DEFAULT '',
+  `section` varchar(64) NOT NULL,
+  `key` varchar(64) NOT NULL,
+  `value` mediumtext NOT NULL,
+  `timestamp` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `user_id` int(11) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+ALTER TABLE `inst_configs`
+ ADD PRIMARY KEY (`id`);
+
+ALTER TABLE `inst_configs`
+MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+UPDATE `system` SET `value`='21' WHERE `key`='DB_VERSION';
+
+ALTER TABLE `portal_pages` CHANGE `language_code` `language_code` VARCHAR( 32 ) CHARACTER SET utf8 COLLATE utf8_unicode_ci NOT NULL ;
+UPDATE `portal_pages` SET language_code = 'cs-cpk-institutions' WHERE language_code = 'cs-cpk';
+UPDATE `portal_pages` SET language_code = 'en-cpk-institutions' WHERE language_code = 'en-cpk';
+UPDATE `system` SET `value`='22' WHERE `key`='DB_VERSION';
+
+ALTER TABLE `portal_pages` ADD `group` INT NOT NULL;
+UPDATE `system` SET `value`='23' WHERE `key`='DB_VERSION';
+
+ALTER TABLE `user_settings` ADD `saved_institutions` TEXT NULL;
+UPDATE `system` SET `value`='24' WHERE `key`='DB_VERSION';
+
+ALTER TABLE `user_settings` CHANGE `saved_institutions` `saved_institutions` TEXT CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL;
+UPDATE `system` SET `value`='25' WHERE `key`='DB_VERSION';

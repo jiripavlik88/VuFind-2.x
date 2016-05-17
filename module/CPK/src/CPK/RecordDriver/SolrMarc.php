@@ -8,7 +8,17 @@ class SolrMarc extends ParentSolrMarc
 {
 
     protected $ilsConfig = null;
-    
+
+    /**
+     * These Solr fields should be used for snippets if available (listed in order
+     * of preference).
+     *
+     * @var array
+     */
+    protected $preferredSnippetFields = [
+        'fulltext'
+    ];
+
     /**
      * These Solr fields should NEVER be used for snippets.  (We exclude author
      * and title because they are already covered by displayed fields; we exclude
@@ -18,14 +28,14 @@ class SolrMarc extends ParentSolrMarc
      * @var array
      */
     protected $forbiddenSnippetFields = [
-                    'author', 'author-letter', 'title', 'title_short', 'title_full',
-                    'title_full_unstemmed', 'title_auth', 'title_sub', 'spelling', 'id',
-                    'ctrlnum', 'title_autocomplete', 'author_autocomplete', 
-                    'titleSeries_search_txt_mv', 'authorCorporation_search_txt_mv',
-                    'author_display', 'title_display', 'author_facet_str_mv', 'author-letter',
-                    'author_sort_str', 'sourceTitle_search_txt_mv', 'author_str', 'spellingShingle',
-                    'source_title_facet_str', 'title_fullStr', 'title_display', 'title_sort',
-                    'title_auth', 'author_search', 'publishDate'
+        'author', 'author-letter', 'title', 'title_short', 'title_full',
+        'title_full_unstemmed', 'title_auth', 'title_sub', 'spelling', 'id',
+        'ctrlnum', 'title_autocomplete', 'author_autocomplete',
+        'titleSeries_search_txt_mv', 'authorCorporation_search_txt_mv',
+        'author_display', 'title_display', 'author_facet_str_mv', 'author-letter',
+        'author_sort_str', 'sourceTitle_search_txt_mv', 'author_str', 'spellingShingle',
+        'source_title_facet_str', 'title_fullStr', 'title_display', 'title_sort',
+        'title_auth', 'author_search', 'publishDate'
     ];
 
     protected function getILSconfig()
@@ -89,10 +99,10 @@ class SolrMarc extends ParentSolrMarc
 
     /**
      * Get field of 7xx
-     * 
+     *
      * @param string $field     The MARC field number to read
      * @param array  $subfields The MARC subfield codes to read
-     * 
+     *
      * @return boolean|array
      */
     public function get7xxField($field, array $subfields = null) {
@@ -276,6 +286,7 @@ class SolrMarc extends ParentSolrMarc
                         unset($holding['item_id']);
                     }
                 }
+                $holding['w_id'] = array_key_exists('w', $currentField) ? $currentField['w'] : null;
 
                 $holdings[] = $holding;
             }
@@ -636,7 +647,7 @@ class SolrMarc extends ParentSolrMarc
                 isset($params['mytags']) ? $params['mytags'] : [],
                 isset($params['notes']) ? $params['notes'] : ''
         );
-        
+
         return ['listId' => $list->id];
     }
 
@@ -655,14 +666,58 @@ class SolrMarc extends ParentSolrMarc
     {
         return isset($this->fields['recordtype']) ? $this->fields['recordtype'] : '';
     }
-    
+
     public function getNonStandardISBN()
     {
         return $this->getFieldArray('902');
     }
-    
+
     public function getCitationRecordType()
     {
         return isset($this->fields['citation_record_type']) ? $this->fields['citation_record_type'] : '';
+    }
+
+
+    /**
+     * From all 996's fields get only the searched item's field.
+     *
+     * @param string $item_id
+     * @return array
+     */
+    public function getItem996($item_id = null)
+    {
+        if (empty($item_id)) return null;
+        $all996subfields = $this->getAll996Subfields();
+        foreach ($all996subfields as $item996) {
+            if ($item_id === $item996['b']) {
+                return $item996;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Pick one line from the highlighted text (if any) to use as a snippet.
+     *
+     * @return mixed False if no snippet found, otherwise associative array
+     * with 'snippet' and 'caption' keys.
+     */
+    public function getHighlightedSnippet()
+    {
+        // Only process snippets if the setting is enabled:
+        if ($this->snippet) {
+            // First check for preferred fields:
+            foreach ($this->preferredSnippetFields as $current) {
+                if (isset($this->highlightDetails[$current][0])) {
+                    return [
+                        'snippet' => $this->highlightDetails[$current][0],
+                        'caption' => $this->getSnippetCaption($current)
+                    ];
+                }
+            }
+        }
+
+        // If we got this far, no snippet was found:
+        return false;
     }
 }

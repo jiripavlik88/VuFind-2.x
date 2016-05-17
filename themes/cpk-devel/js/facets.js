@@ -5,10 +5,16 @@ function buildFacetNodes(data, currentPath, allowExclude, excludeTitle, counts)
 
   $(data).each(function() {
     var html = '';
-    
+
     var lastFacetInString = this.exclude.split( '=' ).pop();
     var facetName = lastFacetInString.split( '%3A' ).shift().substring(1);
-    var facetFilter = facetName + ':"' + this.value + '"';
+    var facetFilterBase = facetName + ':"' + this.value + '"';
+    var facetFilter;
+    if (this.operator == 'OR') {
+      facetFilter = '~' + facetFilterBase;
+    } else {
+      facetFilter = facetFilterBase;
+    }
     if (!this.isApplied && counts) {
       html = "<span class='badge' style='float: right'>" + this.count.toString().replace(/\B(?=(\d{3})+\b)/g, VuFind.translate("number_thousands_separator"));
       if (allowExclude) {
@@ -32,7 +38,7 @@ function buildFacetNodes(data, currentPath, allowExclude, excludeTitle, counts)
     		( (facetName == 'institution') && (institutionCategory == "Library") && (this.level == "2") )
     		||  ( (facetName == 'institution') && (institutionCategory == 'Others') && (this.level == "1") )
     	) 
-    	? " institution-facet-filter facet-filter" 
+    	? " institution-facet-filter" 
     	: ""
     ) 
     + "' title='" + htmlEncode(this.displayText) + "'>";
@@ -53,6 +59,7 @@ function buildFacetNodes(data, currentPath, allowExclude, excludeTitle, counts)
       children = buildFacetNodes(this.children, currentPath, allowExclude, excludeTitle, counts);
     }
     json.push({
+      'id': facetFilter,
       'text': html,
       'children': children,
       'applied': this.isApplied,
@@ -61,6 +68,8 @@ function buildFacetNodes(data, currentPath, allowExclude, excludeTitle, counts)
         'selected': this.isApplied
       },
       'li_attr': this.isApplied ? { 'class': 'active' } : {},
+      'a_attr': this.isApplied ? { 'class': 'active' } :
+          { 'href': window.location.href + "&filter%5B%5D=" + facetFilter },
     });
   });
 
@@ -167,3 +176,171 @@ function initInstitutionsTree(treeNode, inSidebar)
     }
   );
 }
+
+jQuery( document ).ready( function( $ ) {
+
+	/*
+	 * Save chosen institutions to DB
+	 */
+	$( 'body' ).on( 'click', '#save-these-institutions', function( event ) {
+		event.preventDefault();
+
+		var data = {};
+		var institutions = [];
+
+        var selectedInstitutions = $('#facet_institution').jstree(true).get_bottom_selected();
+        $.each( selectedInstitutions, function( index, value ){
+            var explodedArray = value.split(":");
+            institutions.push(explodedArray[1].slice(1, -1));
+        });
+
+		data['institutions'] = institutions;
+
+		$.ajax({
+        	type: 'POST',
+        	cache: false,
+        	dataType: 'json',
+        	url: VuFind.getPath() + '/AJAX/JSON?method=saveTheseInstitutions',
+        	data: data,
+        	beforeSend: function() {
+        	},
+        	success: function( response ) {
+        		console.log( 'Save these institutions: ' );
+        		console.log( data );
+        		if (response.status == 'OK') {
+
+        			$( '#save-these-institutions-confirmation' ).modal( 'show' );
+
+        			setTimeout( function() {
+        				$( '#save-these-institutions-confirmation' ).modal( 'hide' );
+        			}, 1200 );
+
+        		} else {
+        			console.error(response.data);
+        		}
+
+         	},
+            error: function ( xmlHttpRequest, status, error ) {
+            	$( '#search-results-loader' ).remove();
+            	console.error(xmlHttpRequest.responseText);
+            	console.error(xmlHttpRequest);
+            	console.error(status);
+            	console.error(error);
+            },
+            complete: function ( xmlHttpRequest, textStatus ) {
+            }
+        });
+
+	});
+
+    /*
+     * Load saved institutions from db
+     */
+    $( 'body' ).on( 'click', '#load-saved-institutions', function( event ) {
+        event.preventDefault();
+
+        $.ajax({
+            type: 'POST',
+            cache: false,
+            dataType: 'json',
+            url: VuFind.getPath() + '/AJAX/JSON?method=getSavedInstitutions',
+            beforeSend: function() {
+            },
+            success: function( response ) {
+                console.log( 'Save these institutions: ' );
+                console.log( response );
+                if (response.status == 'OK') {
+                    $('#facet_institution').jstree(true).deselect_all();
+
+                    var csvInstitutions = response.data.savedInstitutions;
+
+                    var arrayInstitutions = csvInstitutions.split(";");
+
+
+                    $.each( arrayInstitutions, function( index, value ){
+                        var institution = '~institution:"' + value + '"';
+                        $('#facet_institution').jstree(true).select_node(institution);
+
+                    });
+
+                    $( "input[name='page']" ).val( '1' );
+
+                    //remove all institutions
+                    var allInstitutions = $('#facet_institution').jstree(true).get_json('#', {flat:true});
+                    $.each( allInstitutions, function( index, value ){
+                        ADVSEARCH.removeFacetFilter( value['id'], false );
+                    });
+
+                    //add selected institutions
+                    var selectedInstitutions = $('#facet_institution').jstree(true).get_bottom_selected();
+                    $.each( selectedInstitutions, function( index, value ){
+                        ADVSEARCH.addFacetFilter( value, false );
+                    });
+                    ADVSEARCH.updateSearchResults( undefined, undefined );
+
+                } else {
+                    console.error(response.data);
+                }
+
+            },
+            error: function ( xmlHttpRequest, status, error ) {
+                $( '#search-results-loader' ).remove();
+                console.error(xmlHttpRequest.responseText);
+                console.error(xmlHttpRequest);
+                console.error(status);
+                console.error(error);
+            },
+            complete: function ( xmlHttpRequest, textStatus ) {
+            }
+        });
+
+    });
+    
+    /*
+     * Load my institutions from HTML container
+     */
+    $( 'body' ).on( 'click', '#load-my-institutions', function( event ) {
+        event.preventDefault();
+        
+        var data = $( '#my-libraries-container' ).text();
+        console.log('Loading my libraries: ');
+        console.log( data  );
+
+        $('#facet_institution').jstree(true).deselect_all();
+
+        var arrayInstitutions = data.split(";");
+
+        $.each( arrayInstitutions, function( index, value ){
+            var institution = '~institution:"' + value + '"';
+            $('#facet_institution').jstree(true).select_node(institution);
+
+        });
+
+        $( "input[name='page']" ).val( '1' );
+
+        //remove all institutions
+        var allInstitutions = $('#facet_institution').jstree(true).get_json('#', {flat:true});
+        $.each( allInstitutions, function( index, value ){
+            ADVSEARCH.removeFacetFilter( value['id'], false );
+        });
+
+        //add selected institutions
+        var selectedInstitutions = $('#facet_institution').jstree(true).get_bottom_selected();
+        $.each( selectedInstitutions, function( index, value ){
+            ADVSEARCH.addFacetFilter( value, false );
+        });
+        ADVSEARCH.updateSearchResults( undefined, undefined );
+
+    });
+    
+    /*
+     * Load nearest institutions from HTML container
+     */
+    $( 'body' ).on( 'click', '#load-nearest-institutions', function( event ) {
+        event.preventDefault();
+        
+        console.log('Loading nearest libraries: ');
+        console.log( 'disabled'  );
+    });
+
+});

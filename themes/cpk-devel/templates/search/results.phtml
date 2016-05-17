@@ -14,8 +14,13 @@
   //$this->headScript()->appendFile("check_item_statuses.js");
   $this->headScript()->appendFile("check_save_statuses.js");
   $this->headScript()->appendFile("jquery-ui.min.js");
-  $this->headScript()->appendFile("search-results.js");     
-  
+
+  $this->headScript()->appendFile('vendor/prism.js');
+  $this->headScript()->appendFile('vendor/chosen.jquery.js');
+
+  $this->headLink()->appendStylesheet('vendor/prism.css');
+  $this->headLink()->appendStylesheet('vendor/chosen.css');
+
   // Set up search box:
   $this->layout()->searchbox = $this->context($this)->renderInContext(
       'search/searchbox.phtml',
@@ -28,12 +33,13 @@
         'checkboxFilters' => $this->params->getCheckboxFacets(),
         'filterList' => $this->params->getFilters(),
         'hasDefaultsApplied' => $this->params->hasDefaultsApplied(),
-        'selectedShards' => $this->params->getSelectedShards()
+        'selectedShards' => $this->params->getSelectedShards(),
+        'params' => $this->params,
       )
   );
 
   // Set up breadcrumbs:
-  
+
   $this->layout()->breadcrumbs .= '<li><a title="' . $this->transEsc('Main page') . '" href="/Search">' . $this->transEsc('Main page') . '</a></li> ';
   if (isset($this->overrideTitle)) {
     $this->layout()->breadcrumbs .= '<li class="active">' . $this->escapeHtml($this->overrideTitle) . '</li>';
@@ -45,8 +51,83 @@
   $this->showCartControls = $this->params->getOptions()->supportsCart() && $this->cart()->isActive();
   // Enable bulk options if appropriate:
   $this->showBulkOptions = $this->params->getOptions()->supportsCart() && $this->showBulkOptions;
+
 ?>
 <div id='search-result-list'>
+    <div class="row">
+      <div class="<?=$this->layoutClass('mainbody')?>">
+
+      <div class="hidden-print search-controls row">
+        <div class="col-sm-3">
+          <? if ($recordTotal > 0): ?>
+            <?=$this->render('search/ajax/controls/limit.phtml')?>
+          <? endif; ?>
+        </div>
+
+        <div class='col-sm-6  text-center' id='results-amount-info-placeholder'>
+          <? if ($recordTotal > 0): ?>
+            <?=$this->localizedNumber($this->results->getStartRecord())?> - <?=$this->localizedNumber($this->results->getEndRecord())?>
+            <? if (!isset($this->skipTotalCount)): ?>
+              <?=$this->transEsc('of')?> <?=$this->localizedNumber($recordTotal)?>
+            <? endif; ?>
+          <? else: ?>
+            <h2><?=$this->transEsc('nohit_heading')?></h2>
+          <? endif; ?>
+        </div>
+
+        <? if ($recordTotal > 0): ?>
+          <div class="col-sm-3 text-right" id='search-results-controls'>
+        <? else: ?>
+		  <div class="col-sm-3 text-right" id='search-results-controls' style='display: none;'>
+	    <? endif; ?>
+            <?=$this->render('search/ajax/controls/sort.phtml')?>
+          </div>
+      </div>
+
+        <?=$this->flashmessages()?>
+
+        <? /* End Listing Options */ ?>
+
+        <? if ($recordTotal < 1): ?>
+          <div id='no-results-container'>
+		<? else: ?>
+          <div id='no-results-container' style='display: none;'>
+        <? endif; ?>
+
+            <?= $this->context($this)->renderInContext('search/no-results', ['lookfor' => $lookfor]) ?>
+          </div>
+
+		 <div id='result-list-placeholder'>
+		   <? if ($recordTotal > 0): ?>
+             <?=$this->render('search/list-' . $this->params->getView() . '.phtml')?>
+		   <? endif; ?>
+		 </div>
+
+	     <? if ($recordTotal > 0): ?>
+          <div id='bulk-action-buttons-placeholder'>
+         <? else: ?>
+           <div id='bulk-action-buttons-placeholder' style='display: none;'>
+		 <? endif; ?>
+		     <?=$this->context($this)->renderInContext('search/bulk-action-buttons.phtml', array('idPrefix' => ''))?>
+		   </div>
+
+		 <div id='pagination-placeholder'>
+            <? if ($recordTotal > 0): ?>
+              <?=$this->paginationControl($this->results->getPaginator(), 'Sliding', 'search/pagination.phtml', array('results' => $this->results, 'options' => isset($this->paginationOptions) ? $this->paginationOptions : []))?>
+            <? endif; ?>
+		 </div>
+
+      </div>
+      <? /* End Main Listing */ ?>
+
+      <? /* Narrow Search Options */ ?>
+      <div class="<?=$this->layoutClass('sidebar')?>" id='side-facets-placeholder'>
+        <? foreach ($this->results->getRecommendations('side') as $current): ?>
+          <?=$this->recommend($current)?>
+        <? endforeach; ?>
+      </div>
+      <? /* End Narrow Search Options */ ?>
+    </div>
     <div class='row' id='search-result-list'>
       <div class='col-sm-9 pull-left'>
       </div>
@@ -54,7 +135,7 @@
         <? if ($recordTotal > 0): ?>
           	<div class="result-list-toolbar hidden-print" style='font-size: 150%;'>
                 <a href="<?=$this->url('search-email')?>" class="mailSearch modal-link mail-record-link" id="mailSearch<?=$this->escapeHtmlAttr($this->results->getSearchId())?>" title="<?=$this->transEsc('Email this Search')?>">
-                	<i class="icon-poslat-emailem"></i> 
+                	<i class="icon-poslat-emailem"></i>
                 </a>
                 &nbsp;
                 <a id='rss-link' href="<?=$this->results->getUrlQuery()->setViewParam('rss')?>" title='<?=$this->translate('RSS')?>'>
@@ -77,75 +158,5 @@
               </div>
     	  <? endif; ?>
       </div>
-    </div>
-    <div class="row">
-      <div class="<?=$this->layoutClass('mainbody')?>">
-        <?=$this->flashmessages()?>
-        <div class="hidden-print search-controls row">
-          <div class="col-sm-3">
-          <? if ($recordTotal > 0): ?>
-          <?=$this->render('search/controls/limit.phtml')?>
-          <? endif; ?>
-          </div>
-    	  <div class='col-sm-6 text-center' id='results-amount-info-placeholder'>
-    	    <? if ($recordTotal > 0): ?>
-              <strong><?=$this->localizedNumber($this->results->getStartRecord())?></strong> - <strong><?=$this->localizedNumber($this->results->getEndRecord())?></strong>
-              <? if (!isset($this->skipTotalCount)): ?>
-                <?=$this->transEsc('of')?> <strong><?=$this->localizedNumber($recordTotal)?></strong>
-              <? endif; ?>
-            <? else: ?>
-              <h2><?=$this->transEsc('nohit_heading')?></h2>
-            <? endif; ?>
-    	  </div>
-          <? if ($recordTotal > 0): ?>
-            <div class="col-sm-3 text-right">
-              
-              <?=$this->render('search/controls/sort.phtml')?>
-            </div>
-          <? endif; ?>
-        </div>
-        <? /* End Listing Options */ ?>
-    
-        <? if ($recordTotal < 1): ?>
-          <p>
-            <? if (isset($this->overrideEmptyMessage)): ?>
-              <?=$this->overrideEmptyMessage?>
-            <? else: ?>
-              <?=$this->transEsc('nohit_prefix')?> - <strong><?=$this->escapeHtml($lookfor)?></strong> - <?=$this->transEsc('nohit_suffix')?>
-            <? endif; ?>
-          </p>
-          <p>
-          	<?= $this->translate('nohit_recommendation') ?>
-          </p>
-          <? if (isset($this->parseError)): ?>
-            <p class="alert alert-danger"><?=$this->transEsc('nohit_parse_error')?></p>
-          <? endif; ?>
-          <? foreach (($top = $this->results->getRecommendations('top')) as $current): ?>
-            <?=$this->recommend($current)?>
-          <? endforeach; ?>
-          <? foreach ($this->results->getRecommendations('noresults') as $current): ?>
-            <? if (!in_array($current, $top)): ?>
-              <?=$this->recommend($current)?>
-            <? endif; ?>
-          <? endforeach; ?>
-        <? else: ?>
-          <form class="form-inline" method="post" name="bulkActionForm" action="<?=$this->url('cart-home')?>">
-            <?=$this->context($this)->renderInContext('search/bulk-action-buttons.phtml', array('idPrefix' => ''))?>
-            <?=$this->render('search/list-' . $this->params->getView() . '.phtml')?>
-            <?=$this->context($this)->renderInContext('search/bulk-action-buttons.phtml', array('idPrefix' => 'bottom_'))?>
-            <?=$this->paginationControl($this->results->getPaginator(), 'Sliding', 'search/pagination.phtml', array('results' => $this->results, 'options' => isset($this->paginationOptions) ? $this->paginationOptions : []))?>
-          </form>
-    
-        <? endif; ?>
-      </div>
-      <? /* End Main Listing */ ?>
-    
-      <? /* Narrow Search Options */ ?>
-      <div class="<?=$this->layoutClass('sidebar')?>" id='side-facets-placeholder'>
-        <? foreach ($this->results->getRecommendations('side') as $current): ?>
-          <?=$this->recommend($current)?>
-        <? endforeach; ?>
-      </div>
-      <? /* End Narrow Search Options */ ?>
     </div>
 </div>

@@ -3,7 +3,6 @@
 deps="
 
 favorites/module.js
-favorites/translate.filter.js
 favorites/favsNotifications.service.js
 favorites/favorite.class.js
 favorites/favorites.factory.js
@@ -18,7 +17,15 @@ federative-login/login.controller.js
 notifications/module.js
 notifications/notif.controller.js
 
-cpk.ng-app.js
+admin/module.js
+ng-cpk/admin/configurations/conf.controller.js
+ng-cpk/admin/translations/trans.controller.js
+
+history/module.js
+history/checkedouthistory.controller.js
+
+module.js
+translate.filter.js
 "
 
 if [ ! $(which curl) ]; then
@@ -32,7 +39,7 @@ for i in $deps; do
 	args+=" --data-urlencode js_code@${i}"
 done
 
-dest="ng-apps.min.js"
+dest="ng-cpk.min.js"
 
 echo "Requesting google closure compiler to concatenate & compress & compile all the ng-apps together .."
 curl -Ls $args -d output_info=compiled_code https://closure-compiler.appspot.com/compile > "$dest"

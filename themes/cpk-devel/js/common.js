@@ -330,7 +330,7 @@ function getURLParam(key,target) {
 function setupAutocomplete() {
   // Search autocomplete
   $('.autocomplete').each(function(i, op) {
-    $(op).autocomplete({
+    $(op).autocompleteVufind({
       maxResults: 6,
       loadingString: VuFind.translate('loading')+'...',
       handler: function(query, cb) {
@@ -340,7 +340,7 @@ function setupAutocomplete() {
         var filters = $( '.searchFormKeepFilters' ).is(':checked') 
         	? getURLParam('filter[]', currentUrl) 
         	: 'null';
-        $.fn.autocomplete.ajax({
+        $.fn.autocompleteVufind.ajax({
           url: VuFind.getPath() + '/AJAX/JSON',
           data: {
             q:query,
@@ -369,7 +369,7 @@ function setupAutocomplete() {
   // Update autocomplete on type change
   $('.searchForm_type').change(function() {
     var $lookfor = $(this).closest('.searchForm').find('.searchForm_lookfor[name]');
-    $lookfor.autocomplete('clear cache');
+    $lookfor.autocompleteVufind('clear cache');
     $lookfor.focus();
   });
 }
@@ -427,7 +427,7 @@ $(document).ready(function() {
   keyboardShortcuts();
 
   // support "jump menu" dropdown boxes
-  $('select.jumpMenu').change(function(){ $(this).parent('form').submit(); });
+  $('select.jumpMenu').change(function(){ $(this).parents('form').submit(); });
 
   // Checkbox select all
   $('.checkbox-select-all').change(function() {

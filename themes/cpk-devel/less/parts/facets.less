@@ -1,205 +1,121 @@
 /* This file contains:
-    -bootstrap-material-design .list-group styling
     -cpk specific facet styling
 */
 
-
-//part copied from bootstrap-material-design
-////////////////////////////////////////////
-.list-group {
-  border-radius: 0;
-  .list-group-item {
-    cursor: pointer;
-    background-color: transparent;
-    overflow: hidden;
-    border: 0;
-    border-radius: 0;
-    padding: 0 16px;
-    &.baseline {
-      border-bottom: 1px solid #cecece;
-      &:last-child {
-        border-bottom: none;
-      }
-    }
-    .row-picture, .row-action-primary {
-      float: left;
-      display: inline-block;
-      padding-right: 16px;
-      img, i, label {
-        display: block;
-        width: 56px;
-        height: 56px;
-      }
-      img {
-        background: rgba(0,0,0,0.1);
-        padding: 1px;
-        &.circle {
-          border-radius: 100%;
-        }
-      }
-      i {
-        background: rgba(0,0,0,0.25);
-        border-radius: 100%;
-        text-align: center;
-        line-height: 56px;
-        font-size: 20px;
-        color: white;
-      }
-      label {
-        margin-left: 7px;
-        margin-right: -7px;
-        margin-top: 5px;
-        margin-bottom: -5px;
-        .checkbox-material {
-          left: -10px;
-        }
-      }
-    }
-    .row-content {
-      display: inline-block;
-      width: ~"calc(100% - 92px)";
-      min-height: 66px;
-      .action-secondary {
-        position: absolute;
-        right: 16px;
-        top: 16px;
-        i {
-          font-size: 20px;
-          color: rgba(0,0,0,0.25);
-          cursor: pointer;
-        }
-      }
-      .action-secondary  ~ * {
-        max-width: ~"calc(100% - 30px)";
-      }
-      .least-content {
-        position: absolute;
-        right: 16px;
-        top: 0px;
-        color: rgba(0,0,0,0.54);
-        font-size: 14px;
-      }
-    }
-    .list-group-item-heading {
-      color: rgba(0, 0, 0, 0.77);
-      font-size: 20px;
-      line-height: 29px;
-    }
-  }
-  .list-group-item.active {
-    &:hover, &:focus {
-      background: rgba(0,0,0,.15);
-      outline: 10px solid rgba(0,0,0,.15);
-    }
-    .list-group-item-heading, .list-group-item-text {
-      color: @lightbg-text;
-    }
-
-  }
-  .list-group-separator {
-    clear: both;
-    overflow: hidden;
-    margin-top: 10px;
-    margin-bottom: 10px;
-    &:before {
-      content: "";
-      width: ~"calc(100% - 90px)";
-      border-bottom: 1px solid rgba(0,0,0,0.1);
-      float: right;
-    }
-  }
-}
-
 //part with cpk custom changes
 //////////////////////////////
-.sidebar .facet a {
-  //color: #8a8a8a;
-  color: #333;
-  &:hover {
-    text-decoration: underline;
+.sidebar .facet {
+  border-bottom: 1px solid #ccc;
+  padding-bottom: 10px;
 
+  a {
+    //color: #8a8a8a;
+    color: #333;
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+  .badge {
+    font-weight: normal;
+    color: grey;
+    background-color: transparent;
+  }
+  .jstree-ocl:before {
+    margin-left: -18px;
+    font-size: 20px;
+    margin-top: -5px;
+    color: #e5004b
   }
 }
-.sidebar .facet .badge {
-  font-weight: normal;
-  color: grey;
-  background-color: transparent;
-}
-
-.list-group {
+.sidebar {
   .list-group-item {
     padding: 2px 16px 2px 26px;
-    &:hover {
-      background-color: white;
+    background-color: inherit;
+    border: 0px;
 
+    i.pr-institution-arrow:before {
+      // pr-interface-arrowbottom4
+      content: "\ead9";
+      color: @brand-primary;
     }
+
+    &.collapsed {
+      i.pr-institution-arrow:before {
+        // pr-interface-arrowright5
+        content: "\ead8";
+        color: @brand-primary;
+      }
+    }
+
   }
 
   .list-group-item.active {
-    background-color: @brand-primary;
+    color: @brand-primary;
+    font-weight: bold;
     &:hover, &:focus {
+      background-color: transparent;
+      color: @brand-primary;
+      text-decoration: underline;
       outline: none;
     }
-
   }
+  .list-group, .tt-dropdown-menu {
+      background-color: inherit;
+  }
+
+  .list-group-item.title {
+      font-size: 120%;
+      font-weight: normal;
+  }
+
+  #side-panel-institution {
+    background-color: @light-grey;
+    color: #111;
+  }
+
 }
 
-.badge {
-  font-weight: normal;
-  color: #d6d6d6;
-  margin-top: 1px;
+.jstree-facet .jstree-container-ul {
+  & > li.active,
+  & > li.active a.jstree-anchor {
+    background-color: transparent;
+    color: @brand-primary;
+  }
 }
 
 li.jstree-facet ul {
   padding-left: 21px;
 }
 
-.facet .jstree-ocl:before {
-  margin-left: -18px;
-  font-size: 20px;
-  margin-top: -5px;
+.sidebar .list-group:not(.filters) {
+  .title::after {
+      content: none;
+      color: #e5004b !important;
+  }
+
+  .title.collapsed::after {
+      color: #e5004b !important;
+      content: none;
+  }
+
 }
 
-.facet {
-    border-bottom: 1px solid #ccc;
-    padding-bottom: 10px;
-}
-.jstree-ocl::before {
-    color: #e5004b !important;
-    // content: "»" !important;
-}
-
-.sidebar .list-group:not(.filters) .title::after {
-    content: none;
-    color: #e5004b !important;
-}
-
-.sidebar .list-group:not(.filters) .title::before {
-    content: "⇱ ";
-    color: #e5004b !important;
+.sidebar .facet .jstree-default{
+  .jstree-ocl:before {
+    font-family: 'pr-icons' !important;
+    font-size: inherit;
+    margin-top: 0px;
+  }
+  .jstree-open > .jstree-ocl:before {
+    // pr-interface-arrowbottom4
+    content: "\ead9";
+  }
+  .jstree-closed > .jstree-ocl:before {
+    // pr-interface-arrowright5
+    content: "\ead8";
+  }
 }
 
-.sidebar .list-group:not(.filters) .title.collapsed::after {
-    color: #e5004b !important;
-    content: none;
-}
-
-.sidebar .list-group:not(.filters) .title.collapsed::before {
-    content: "⇲ ";
-}
-
-.list-group, .tt-dropdown-menu {
-    background-color: inherit !important;
-}
-
-.list-group-item {
-    background-color: inherit !important;
-}
-
-.list-group-item.title {
-    font-size: 120%;
-    font-weight: normal;
-}
 
 //date visualization
 ////////////////////
@@ -208,4 +124,19 @@ li.jstree-facet ul {
   fill: #eaeaea;
   outline-color: lighten(@brand-primary, 20%);
   stroke: #333;
+}
+
+.institutions-loaders {
+    float: right;
+    padding: 4px 18px 4px 0px;
+    font-size: 120%;
+    text-align: right;
+}
+.institutions-loaders a {
+    margin-left: 4px;
+}
+
+#save-these-institutions {
+    font-size: 120%;
+    padding-left: 4px;
 }

@@ -49,6 +49,37 @@
 //contain styling for advanced search
 @import "parts/advanced-search";
 
+body {
+  font-weight: 300;
+}
+
+.btn {
+  line-height: 1.875;
+}
+
+a.list-group-item .list-group-item-heading {
+  color: @brand-primary;
+}
+
+.most-wanted .content {
+  padding-top: 10px;
+}
+
+.searchHomeContent h2 {
+    font-size: 180%;
+    font-weight: 600;
+}
+
+.searchHomeContent .more-info {
+  color: @brand-primary;
+  font-size: 120%;
+}
+
+.widget .header {
+    text-align: center;
+    padding-bottom: 10px;
+}
+
 ///////////////////////////////////////////////////////////////////////////////////////////
 // Avoid showing horizontal scroolbar, when header and footer overflows on smaller desktops
 @media (min-width: @screen-lg-min) {
@@ -99,8 +130,9 @@ a:hover, a:focus, .btn-link:hover, .btn-link:focus {
 }
 
 .btn-primary {
-  font-family: LatoWebHeavy;
+  font-family: Soleil,LatoWebHeavy;
   text-transform: uppercase;
+  font-weight: bold;
 }
 
 .link {
@@ -108,4 +140,31 @@ a:hover, a:focus, .btn-link:hover, .btn-link:focus {
 }
 .link:hover {
     text-decoration: underline !important;
+}
+
+.col-sm-3 .list-group-item {
+  border: 0px;
+  padding: 2px 16px 2px 26px;
+}
+
+.events .number {
+  font-size: 40px;
+  font-weight: bold;
+  color: #ccc;
+}
+
+.nav li.active a {
+  color: @link-hover-color;
+}
+
+.label-warning {
+    background-color: #F0A618;
+}
+
+.label-success {
+    background-color: #12B03B;
+}
+
+.label-unknown {
+    background-color: #888888;
 }

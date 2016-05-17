@@ -32,7 +32,7 @@ use VuFind\Controller\AbstractBase;
  * @author  Martin Kravec <martin.kravec@mzk.cz>
  * @license http://opensource.org/licenses/gpl-3.0.php GNU General Public License
  */
-class PortalController extends AbstractBase 
+class PortalController extends AbstractBase
 {
 	/**
 	 * View page
@@ -42,19 +42,27 @@ class PortalController extends AbstractBase
 	public function pageAction()
 	{
 	    $prettyUrl = $this->params()->fromRoute('subaction');
-	    $language = $this->params()->fromRoute('param');
-	    
 	    $portalPagesTable = $this->getTable("portalpages");
-	    $page = $portalPagesTable->getPage($prettyUrl);
-	    
+
+	    if (! empty($this->params()->fromPost('mylang'))) {
+	        $languageCode = $this->params()->fromPost('mylang');
+	    } else if (! empty($_COOKIE['language'])) {
+	        $languageCode = $_COOKIE['language'];
+	    } else {
+	        $config = $this->getConfig();
+	        $languageCode = $config->Site->language;
+	    }
+
+	    $page = $portalPagesTable->getPage($prettyUrl, $languageCode);
+
 	    $view = $this->createViewModel([
 	       'page' => $page,
 	    ]);
-	    
+
 	    $view->setTemplate('portal/page');
-	    
+
 	    if (! $page) $view->setTemplate('error/404');
-	   
+
 	    if ($page['published'] != '1') {
 	        $view->setTemplate('error/404');
 	        $displayToken = $this->params()->fromQuery('displayToken');
@@ -67,7 +75,7 @@ class PortalController extends AbstractBase
         	    }
 	        }
 	    }
-	    
+
 	    return $view;
 	}
 }
